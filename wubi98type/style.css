@@ -1,0 +1,229 @@
+/* 五笔 98 打字练习 —— 使用系统主题色，跟随明暗模式 */
+
+.header-title {
+  font-weight: 700;
+}
+
+.title-xl {
+  font-size: 32px;
+  font-weight: 800;
+  letter-spacing: 0.5px;
+}
+
+.subtitle {
+  font-size: 14px;
+  opacity: 0.65;
+}
+
+.hint {
+  font-size: 12px;
+  opacity: 0.6;
+}
+
+.card {
+  background-color: @theme_base_color;
+  border: 1px solid @borders;
+  border-radius: 16px;
+  padding: 18px;
+}
+
+.stats-card {
+  padding: 10px 18px;
+}
+
+.prompt-card {
+  padding: 14px 18px;
+}
+
+.keyboard-card {
+  padding: 10px;
+}
+
+.field-label {
+  font-weight: 600;
+  opacity: 0.85;
+}
+
+dropdown {
+  min-width: 240px;
+}
+
+.stat-value {
+  font-size: 24px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.stat-label {
+  font-size: 11px;
+  letter-spacing: 1px;
+  opacity: 0.6;
+}
+
+.best-value {
+  font-size: 18px;
+  font-weight: 700;
+}
+
+.start-button {
+  padding: 10px 20px;
+  font-size: 15px;
+  font-weight: 600;
+  border-radius: 10px;
+}
+
+.meta,
+.streak {
+  font-size: 12px;
+  opacity: 0.65;
+}
+
+.big-char {
+  font-weight: 700;
+}
+
+.big-char.size-1 {
+  font-size: 92px;
+}
+
+.big-char.size-2 {
+  font-size: 72px;
+}
+
+.big-char.size-3 {
+  font-size: 54px;
+}
+
+.big-char.size-4 {
+  font-size: 40px;
+}
+
+.big-char.size-5 {
+  font-size: 32px;
+}
+
+.big-char.size-6 {
+  font-size: 26px;
+}
+
+.code-box {
+  border: 2px solid @borders;
+  border-radius: 10px;
+  font-size: 24px;
+  font-weight: 700;
+  min-width: 46px;
+  min-height: 54px;
+}
+
+.code-box.filled {
+  background-color: @accent_bg_color;
+  color: @accent_fg_color;
+  border-color: transparent;
+}
+
+.code-box.next {
+  border-color: @accent_bg_color;
+  background-color: alpha(@accent_bg_color, 0.14);
+}
+
+.code-box.empty {
+  opacity: 0.35;
+}
+
+.feedback {
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.feedback.ok {
+  color: #2ec27e;
+}
+
+.feedback.bad {
+  color: #e01b24;
+}
+
+.feedback.warn {
+  color: #e5a50a;
+}
+
+.practice-progress {
+  min-height: 5px;
+  margin-top: 6px;
+}
+
+progressbar.practice-progress > trough {
+  min-height: 5px;
+  border-radius: 3px;
+}
+
+progressbar.practice-progress > trough > progress {
+  min-height: 5px;
+  border-radius: 3px;
+}
+
+.hero-value {
+  font-size: 54px;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+}
+
+.hero-unit {
+  font-size: 15px;
+  opacity: 0.6;
+}
+
+.detail-value {
+  font-size: 20px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.card-title {
+  font-size: 15px;
+  font-weight: 700;
+}
+
+.record-badge {
+  color: #3584e4;
+  font-weight: 700;
+}
+
+.zone-label {
+  font-size: 11px;
+  font-weight: 700;
+  opacity: 0.45;
+}
+
+.mnemonic-key {
+  color: #3584e4;
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.mnemonic-text {
+  font-size: 13px;
+  opacity: 0.82;
+}
+
+.mistake-row {
+  padding: 6px 10px;
+  border-radius: 8px;
+  background-color: alpha(@theme_fg_color, 0.05);
+}
+
+.mistake-word {
+  font-size: 20px;
+  font-weight: 700;
+}
+
+.mistake-code {
+  font-size: 14px;
+  font-family: monospace;
+  opacity: 0.7;
+}
+
+.mistake-note {
+  font-size: 12px;
+  opacity: 0.65;
+}
