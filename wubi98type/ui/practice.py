@@ -10,8 +10,11 @@ from gi.repository import GLib, Gtk  # noqa: E402
 
 from ..drill import PressResult, Session  # noqa: E402
 from ..keymap import MNEMONICS  # noqa: E402
+from ..keytable import KeyTableImages  # noqa: E402
 from .keyboard import KeyboardView  # noqa: E402
 from .widgets import card, label, stat_block  # noqa: E402
+
+KEY_PREVIEW_SIZE = (132, 162)
 
 
 def _clock(seconds: float) -> str:
@@ -61,9 +64,12 @@ class PracticeView(Gtk.Box):
         self.append(stats_card)
 
         # 题目卡片
-        prompt_card = card(spacing=2)
+        prompt_card = Gtk.Overlay()
+        prompt_card.add_css_class("card")
         prompt_card.add_css_class("prompt-card")
         self.append(prompt_card)
+        content = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=2)
+        prompt_card.set_child(content)
 
         header_row = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=8)
         self.meta_label = label("", "meta")
@@ -73,7 +79,7 @@ class PracticeView(Gtk.Box):
         self.streak_label.set_xalign(1)
         header_row.append(self.meta_label)
         header_row.append(self.streak_label)
-        prompt_card.append(header_row)
+        content.append(header_row)
 
         holder = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
         holder.set_size_request(-1, 116)
@@ -83,7 +89,7 @@ class PracticeView(Gtk.Box):
         self.char_label.set_yalign(0.5)
         self.char_label.set_vexpand(True)
         holder.append(self.char_label)
-        prompt_card.append(holder)
+        content.append(holder)
 
         self.code_row = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=10)
         self.code_row.set_halign(Gtk.Align.CENTER)
@@ -95,7 +101,7 @@ class PracticeView(Gtk.Box):
             box.set_yalign(0.5)
             self.code_row.append(box)
             self.code_boxes.append(box)
-        prompt_card.append(self.code_row)
+        content.append(self.code_row)
 
         self.mnemonic_box = Gtk.Box(
             orientation=Gtk.Orientation.HORIZONTAL, spacing=6
@@ -106,17 +112,38 @@ class PracticeView(Gtk.Box):
         self.mnemonic_text = label("", "mnemonic-text")
         self.mnemonic_box.append(self.mnemonic_key)
         self.mnemonic_box.append(self.mnemonic_text)
-        prompt_card.append(self.mnemonic_box)
+        content.append(self.mnemonic_box)
 
         self.feedback_label = label("", "feedback")
         self.feedback_label.set_xalign(0.5)
         self.feedback_label.set_size_request(-1, 22)
-        prompt_card.append(self.feedback_label)
+        content.append(self.feedback_label)
 
         self.progress_bar = Gtk.ProgressBar()
         self.progress_bar.add_css_class("practice-progress")
         self.progress_bar.set_fraction(0.0)
-        prompt_card.append(self.progress_bar)
+        content.append(self.progress_bar)
+
+        # 当前键位图形（仅在开启编码提示时显示）
+        self.key_images = KeyTableImages()
+        self.key_preview = Gtk.Box(
+            orientation=Gtk.Orientation.VERTICAL, spacing=2
+        )
+        self.key_preview.add_css_class("key-preview")
+        self.key_preview.set_halign(Gtk.Align.END)
+        self.key_preview.set_valign(Gtk.Align.CENTER)
+        self.key_preview.set_margin_end(20)
+        self.key_preview.set_visible(False)
+        self.key_preview_caption = label("当前键位", "stat-label")
+        self.key_preview_caption.set_xalign(0.5)
+        self.key_picture = Gtk.Picture()
+        self.key_picture.add_css_class("key-preview-picture")
+        self.key_picture.set_size_request(*KEY_PREVIEW_SIZE)
+        self.key_picture.set_can_shrink(True)
+        self.key_picture.set_content_fit(Gtk.ContentFit.CONTAIN)
+        self.key_preview.append(self.key_preview_caption)
+        self.key_preview.append(self.key_picture)
+        prompt_card.add_overlay(self.key_preview)
 
         # 虚拟键盘
         keyboard_card = card(spacing=0)
@@ -243,6 +270,7 @@ class PracticeView(Gtk.Box):
             for box in self.code_boxes:
                 box.set_visible(False)
             self.mnemonic_box.set_visible(False)
+            self.key_preview.set_visible(False)
             self.keyboard.set_expected(None)
         else:
             self.char_label.set_label(current.text)
@@ -250,6 +278,7 @@ class PracticeView(Gtk.Box):
             self._update_boxes(current.code, session.typed)
             self.keyboard.set_expected(session.expected)
             self._update_mnemonic(session.expected)
+            self._update_key_preview(session.expected)
         self._update_stats()
         self.streak_label.set_label(
             f"连击 {session.streak} · 错误 {session.errors}"
@@ -302,6 +331,18 @@ class PracticeView(Gtk.Box):
         self.mnemonic_key.set_label(expected.upper())
         self.mnemonic_text.set_label(mnemonic)
         self.mnemonic_box.set_visible(True)
+
+    def _update_key_preview(self, expected: str | None) -> None:
+        if self.hint == "none" or not expected:
+            self.key_preview.set_visible(False)
+            return
+        texture = self.key_images.texture(expected, KEY_PREVIEW_SIZE)
+        if texture is None:
+            self.key_preview.set_visible(False)
+            return
+        self.key_picture.set_paintable(texture)
+        self.key_preview_caption.set_label(f"当前键位 · {expected.upper()}")
+        self.key_preview.set_visible(True)
 
     def _update_stats(self) -> None:
         session = self.session

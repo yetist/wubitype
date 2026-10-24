@@ -14,6 +14,7 @@ from wubi98type.data import (
 )
 from wubi98type.drill import PressResult, Session
 from wubi98type.keymap import KEYMAP, MNEMONICS
+from wubi98type.keytable import KEY_BOXES, TABLE_SIZE, KeyTableImages, find_table_image
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -76,6 +77,49 @@ class KeymapTest(unittest.TestCase):
     def test_mnemonics_are_seven_characters(self) -> None:
         for letter, line in MNEMONICS.items():
             self.assertEqual(len(line), 7, f"{letter}: {line}")
+
+
+class KeyTableTest(unittest.TestCase):
+    def test_boxes_cover_all_keys(self) -> None:
+        self.assertEqual(set(KEY_BOXES), set(KEYMAP))
+
+    def test_boxes_are_inside_image(self) -> None:
+        width, height = TABLE_SIZE
+        for letter, (x, y, box_w, box_h) in KEY_BOXES.items():
+            self.assertGreater(box_w, 0, letter)
+            self.assertGreater(box_h, 0, letter)
+            self.assertGreaterEqual(x, 0, letter)
+            self.assertGreaterEqual(y, 0, letter)
+            self.assertLessEqual(x + box_w, width, letter)
+            self.assertLessEqual(y + box_h, height, letter)
+
+    def test_boxes_do_not_overlap(self) -> None:
+        items = list(KEY_BOXES.items())
+        for index, (letter, box) in enumerate(items):
+            ax, ay, aw, ah = box
+            for other_letter, other in items[index + 1 :]:
+                bx, by, bw, bh = other
+                overlap = (
+                    ax < bx + bw
+                    and bx < ax + aw
+                    and ay < by + bh
+                    and by < ay + ah
+                )
+                self.assertFalse(overlap, f"{letter} 与 {other_letter}")
+
+    def test_crop_from_real_image(self) -> None:
+        path = find_table_image()
+        if path is None:
+            self.skipTest("未找到 wubi98-table.png")
+        images = KeyTableImages(path)
+        for letter, (x, y, width, height) in KEY_BOXES.items():
+            texture = images.texture(letter)
+            self.assertIsNotNone(texture, letter)
+            self.assertEqual(texture.get_width(), width, letter)
+            self.assertEqual(texture.get_height(), height, letter)
+        preview = images.texture("e", (132, 162))
+        self.assertIsNotNone(preview)
+        self.assertEqual((preview.get_width(), preview.get_height()), (132, 162))
 
 
 class SessionTest(unittest.TestCase):
