@@ -16,6 +16,7 @@ from wubi98type.data import (
 from wubi98type.drill import PressResult, Session
 from wubi98type.keymap import KEYMAP, MNEMONICS
 from wubi98type.keytable import KEY_BOXES, TABLE_SIZE, KeyTableImages, find_table_image
+from wubi98type.lookup import ReverseLookup, clean_code
 from wubi98type.passage import build_passage, read_text_file
 from wubi98type.poems import POEMS, POEM_BY_ID
 
@@ -123,6 +124,61 @@ class KeyTableTest(unittest.TestCase):
         preview = images.texture("e", (132, 162))
         self.assertIsNotNone(preview)
         self.assertEqual((preview.get_width(), preview.get_height()), (132, 162))
+
+
+class LookupTest(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls) -> None:
+        cls.lookup = ReverseLookup.load(ROOT)
+
+    def test_exact_short_code(self) -> None:
+        result = self.lookup.search("a")
+        texts = {item.text for item in result.exact}
+        self.assertIn("工", texts)
+        self.assertIn("戈", texts)
+
+    def test_exact_full_code(self) -> None:
+        result = self.lookup.search("trng")
+        self.assertTrue(
+            any(item.text == "鹅" and item.code == "trng" for item in result.exact)
+        )
+
+    def test_phrase_lookup(self) -> None:
+        result = self.lookup.search("xciy")
+        self.assertTrue(any(item.text == "经济" for item in result.exact))
+
+    def test_prefix_lookup(self) -> None:
+        result = self.lookup.search("trng")
+        self.assertTrue(
+            all(item.code.startswith("trng") for item in result.prefix)
+        )
+        broader = self.lookup.search("tr")
+        self.assertGreater(broader.prefix_total, 0)
+        self.assertTrue(all(item.code.startswith("tr") for item in broader.prefix))
+
+    def test_include_phrase_filter(self) -> None:
+        without = self.lookup.search("aaaa", include_phrases=False)
+        self.assertTrue(all(len(item.text) == 1 for item in without.exact))
+        with_phrases = self.lookup.search("aaaa", include_phrases=True)
+        self.assertTrue(any(len(item.text) > 1 for item in with_phrases.exact))
+
+    def test_limit_and_truncation(self) -> None:
+        result = self.lookup.search("a", limit=5)
+        self.assertLessEqual(len(result.prefix), 5)
+        self.assertGreater(result.prefix_total, 5)
+        self.assertTrue(result.truncated)
+
+    def test_clean_code(self) -> None:
+        self.assertEqual(clean_code("TRNG"), "trng")
+        self.assertEqual(clean_code("tr9ng!"), "trng")
+        self.assertEqual(clean_code("abcdefg"), "abcd")
+        self.assertEqual(clean_code("zzz"), "")
+
+    def test_empty_query(self) -> None:
+        result = self.lookup.search("")
+        self.assertEqual(result.total, 0)
+        self.assertEqual(result.exact, ())
+        self.assertEqual(result.prefix, ())
 
 
 class PoemTest(unittest.TestCase):
@@ -256,6 +312,24 @@ class SessionTest(unittest.TestCase):
             session.press(letter)
         self.assertAlmostEqual(session.elapsed, 30.0)
         self.assertAlmostEqual(session.speed, 2.0)
+
+    def test_pause_excludes_lookup_time(self) -> None:
+        clock = [100.0]
+        session = Session(
+            [([Entry("工", "aaaa")], 1.0)],
+            1,
+            now=lambda: clock[0],
+        )
+        session.press("a")
+        clock[0] = 110.0
+        session.pause()
+        self.assertTrue(session.is_paused)
+        clock[0] = 150.0
+        self.assertAlmostEqual(session.elapsed, 10.0)
+        session.resume()
+        self.assertFalse(session.is_paused)
+        clock[0] = 160.0
+        self.assertAlmostEqual(session.elapsed, 20.0)
 
     def test_empty_bucket_rejected(self) -> None:
         with self.assertRaises(ValueError):

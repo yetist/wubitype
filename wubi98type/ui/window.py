@@ -20,9 +20,11 @@ from ..data import (  # noqa: E402
     default_data_dir,
 )
 from ..drill import Session  # noqa: E402
+from ..lookup import ReverseLookup  # noqa: E402
 from ..passage import Passage, build_passage, read_text_file  # noqa: E402
 from ..poems import POEM_BY_ID  # noqa: E402
 from .home import MODE_IDS, MODE_LABELS, HomeView  # noqa: E402
+from .lookup import LookupDialog  # noqa: E402
 from .practice import PracticeView  # noqa: E402
 from .summary import SummaryView  # noqa: E402
 from .widgets import label  # noqa: E402
@@ -34,6 +36,8 @@ class MainWindow(Gtk.ApplicationWindow):
         self.config = config
         self.dictionary: Dictionary | None = None
         self._keymap_window: Gtk.Window | None = None
+        self._lookup_window: LookupDialog | None = None
+        self._lookup_paused: Session | None = None
         self._recordable = True
 
         self.set_title("五笔 98 打字练习")
@@ -46,12 +50,18 @@ class MainWindow(Gtk.ApplicationWindow):
         header.set_title_widget(title)
 
         menu = Gio.Menu()
+        menu.append("编码反查", "win.lookup")
         menu.append("查看键位图", "win.keymap")
         menu.append("清空最佳成绩", "win.clear-records")
         menu.append("关于", "win.about")
         menu_button = Gtk.MenuButton(icon_name="open-menu-symbolic", menu_model=menu)
         menu_button.set_tooltip_text("菜单")
         header.pack_end(menu_button)
+
+        lookup_button = Gtk.Button(icon_name="edit-find-symbolic")
+        lookup_button.set_tooltip_text("编码反查")
+        lookup_button.connect("clicked", lambda _button: self._show_lookup())
+        header.pack_end(lookup_button)
         self.set_titlebar(header)
 
         self._install_actions()
@@ -96,6 +106,7 @@ class MainWindow(Gtk.ApplicationWindow):
     def _install_actions(self) -> None:
         actions = (
             ("about", self._show_about),
+            ("lookup", self._show_lookup),
             ("keymap", self._show_keymap),
             ("clear-records", self._clear_records),
         )
@@ -116,6 +127,34 @@ class MainWindow(Gtk.ApplicationWindow):
         dialog.set_logo_icon_name("input-keyboard-symbolic")
         dialog.set_authors(["wubi98type contributors"])
         dialog.present()
+
+    def _show_lookup(self) -> None:
+        if self._lookup_window is not None:
+            self._lookup_window.present()
+            return
+        try:
+            lookup = ReverseLookup.load(extended=self.config.extended)
+        except (OSError, FileNotFoundError) as error:
+            self._alert("无法加载码表", str(error))
+            return
+        dialog = LookupDialog(self, lookup)
+        if (
+            self.stack.get_visible_child_name() == "practice"
+            and self.practice.session is not None
+            and not self.practice.session.is_finished
+        ):
+            self.practice.session.pause()
+            self._lookup_paused = self.practice.session
+        dialog.connect("close-request", self._on_lookup_closed)
+        self._lookup_window = dialog
+        dialog.present()
+
+    def _on_lookup_closed(self, _window: Gtk.Window) -> bool:
+        if self._lookup_paused is not None:
+            self._lookup_paused.resume()
+            self._lookup_paused = None
+        self._lookup_window = None
+        return False
 
     def _show_keymap(self) -> None:
         if self._keymap_window is not None:

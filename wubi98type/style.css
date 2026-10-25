@@ -236,3 +236,49 @@ progressbar.practice-progress > trough > progress {
   font-size: 12px;
   opacity: 0.65;
 }
+
+.lookup-scroller {
+  border: 1px solid @borders;
+  border-radius: 12px;
+}
+
+.lookup-list {
+  background: transparent;
+}
+
+.lookup-list row {
+  border-radius: 8px;
+}
+
+.lookup-list row:hover {
+  background-color: alpha(@theme_fg_color, 0.06);
+}
+
+.lookup-code {
+  color: #3584e4;
+  font-family: monospace;
+  font-size: 15px;
+  font-weight: 700;
+}
+
+.lookup-word {
+  font-size: 20px;
+  font-weight: 700;
+}
+
+.lookup-kind {
+  font-size: 11px;
+  opacity: 0.55;
+}
+
+.lookup-copy {
+  font-size: 11px;
+  opacity: 0.4;
+}
+
+.lookup-section {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 1px;
+  opacity: 0.55;
+}

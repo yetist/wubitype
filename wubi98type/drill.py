@@ -131,7 +131,28 @@ class Session:
         self.mistakes: list[Mistake] = []
         self.start_time: float | None = None
         self.end_time: float | None = None
+        self.paused_total = 0.0
+        self._pause_start: float | None = None
         self._item_errors = 0
+
+    @property
+    def is_paused(self) -> bool:
+        return self._pause_start is not None
+
+    def pause(self) -> None:
+        if (
+            self.start_time is None
+            or self.is_finished
+            or self._pause_start is not None
+        ):
+            return
+        self._pause_start = self._now()
+
+    def resume(self) -> None:
+        if self._pause_start is None:
+            return
+        self.paused_total += self._now() - self._pause_start
+        self._pause_start = None
 
     @classmethod
     def sequence(
@@ -166,8 +187,13 @@ class Session:
     def elapsed(self) -> float:
         if self.start_time is None:
             return 0.0
-        end = self.end_time if self.end_time is not None else self._now()
-        return max(0.0, end - self.start_time)
+        if self.end_time is not None:
+            end = self.end_time
+        elif self._pause_start is not None:
+            end = self._pause_start
+        else:
+            end = self._now()
+        return max(0.0, end - self.start_time - self.paused_total)
 
     @property
     def speed(self) -> float:
