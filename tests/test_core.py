@@ -14,6 +14,7 @@ from wubi98type.data import (
     parse_table,
 )
 from wubi98type.drill import PressResult, Session
+from wubi98type.encoding import WordIndex
 from wubi98type.keymap import KEYMAP, MNEMONICS
 from wubi98type.keytable import KEY_BOXES, TABLE_SIZE, KeyTableImages, find_table_image
 from wubi98type.lookup import ReverseLookup, clean_code
@@ -181,10 +182,82 @@ class LookupTest(unittest.TestCase):
         self.assertEqual(result.prefix, ())
 
 
+class EncodingTest(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls) -> None:
+        cls.index = WordIndex.load(ROOT)
+
+    def test_char_preferred_short_code(self) -> None:
+        word = self.index.get("的")
+        self.assertIsNotNone(word)
+        self.assertEqual(word.preferred_code, "r")
+        self.assertEqual(word.full_code, "rqyy")
+        self.assertTrue(word.has_short_code)
+
+    def test_phrase_entry(self) -> None:
+        word = self.index.get("计算机")
+        self.assertIsNotNone(word)
+        self.assertEqual(word.kind, "phrase")
+        self.assertEqual(word.preferred_code, "ytsw")
+
+    def test_longest_phrase_first(self) -> None:
+        result = self.index.encode("计算机")
+        self.assertEqual(len(result.segments), 1)
+        self.assertEqual(result.segments[0].text, "计算机")
+        self.assertEqual(result.minimal_code, "ytsw")
+
+    def test_sentence_segmentation(self) -> None:
+        result = self.index.encode("我爱北京天安门")
+        self.assertEqual(
+            "".join(segment.text for segment in result.segments),
+            "我爱北京天安门",
+        )
+        self.assertTrue(any(len(segment.text) > 1 for segment in result.segments))
+        self.assertEqual(result.missing, ())
+        self.assertEqual(len(result.minimal_code), sum(
+            len(segment.code) for segment in result.segments
+        ))
+
+    def test_punctuation_ignored(self) -> None:
+        result = self.index.encode("中国，加油！")
+        self.assertEqual(
+            "".join(segment.text for segment in result.segments),
+            "中国加油",
+        )
+        self.assertEqual(result.missing, ())
+
+    def test_minimal_and_full_codes(self) -> None:
+        result = self.index.encode("的")
+        self.assertEqual(len(result.segments), 1)
+        self.assertEqual(result.minimal_code, "r")
+        self.assertEqual(result.full_code, "rqyy")
+        self.assertTrue(result.has_short_codes)
+
+    def test_spaced_codes_for_sentence(self) -> None:
+        result = self.index.encode("我爱北京天安门")
+        self.assertEqual(
+            result.minimal_code_spaced,
+            " ".join(segment.code for segment in result.segments),
+        )
+        self.assertIn(" ", result.minimal_code_spaced)
+        self.assertEqual(
+            result.full_code_spaced,
+            " ".join(segment.full_code for segment in result.segments),
+        )
+
+    def test_codes_sorted_shortest_first(self) -> None:
+        word = self.index.get("工")
+        self.assertIsNotNone(word)
+        lengths = [len(code) for code in word.codes]
+        self.assertEqual(lengths, sorted(lengths))
+        self.assertEqual(word.preferred_code, "a")
+        self.assertEqual(word.full_code, "aaaa")
+
+
 class PoemTest(unittest.TestCase):
     @classmethod
     def setUpClass(cls) -> None:
-        cls.dictionary = Dictionary.load(ROOT)
+        cls.words = WordIndex.load(ROOT)
 
     def test_poem_collection(self) -> None:
         self.assertEqual(len(POEMS), 80)
@@ -198,11 +271,15 @@ class PoemTest(unittest.TestCase):
 
     def test_all_poem_characters_have_codes(self) -> None:
         for poem in POEMS:
-            passage = build_passage(poem.text, poem.title, self.dictionary)
+            passage = build_passage(poem.text, poem.title, self.words)
             hanzi_count = sum(1 for char in poem.text if is_hanzi(char))
             self.assertEqual(passage.char_count, hanzi_count, poem.title)
             for position, item in zip(passage.positions, passage.items):
-                self.assertEqual(poem.text[position], item.text)
+                self.assertEqual(
+                    poem.text[position : position + len(item.text)],
+                    item.text,
+                    poem.title,
+                )
 
     def test_duplicate_titles_are_disambiguated(self) -> None:
         labels = [poem.label for poem in POEMS]
@@ -213,11 +290,17 @@ class PoemTest(unittest.TestCase):
 
     def test_build_passage_skips_punctuation(self) -> None:
         text = "床前明月光，\n疑是地上霜。"
-        passage = build_passage(text, "静夜思", self.dictionary)
+        passage = build_passage(text, "静夜思", self.words)
         self.assertEqual(passage.char_count, 10)
-        self.assertEqual("".join(item.text for item in passage.items), "床前明月光疑是地上霜")
-        self.assertEqual(text[passage.positions[0]], "床")
-        self.assertEqual(text[passage.positions[-1]], "霜")
+        self.assertEqual(
+            "".join(item.text for item in passage.items),
+            "床前明月光疑是地上霜",
+        )
+        for position, item in zip(passage.positions, passage.items):
+            self.assertEqual(
+                passage.text[position : position + len(item.text)],
+                item.text,
+            )
 
     def test_sequence_session_keeps_order(self) -> None:
         items = [Entry("床", "ysi"), Entry("前", "uej")]
@@ -228,6 +311,15 @@ class PoemTest(unittest.TestCase):
             result = session.press(letter)
         self.assertIs(result, PressResult.ITEM_DONE)
         self.assertEqual(session.current.text, "前")
+
+    def test_passage_uses_phrases_and_short_codes(self) -> None:
+        passage = build_passage("我爱北京天安门。", "测试", self.words)
+        self.assertEqual(
+            [(item.text, item.code) for item in passage.items],
+            [("我", "q"), ("爱", "ep"), ("北京", "uxyi"), ("天安门", "gpuy")],
+        )
+        self.assertEqual(passage.char_count, 7)
+        self.assertEqual(passage.segment_count, 4)
 
     def test_read_text_file_encodings(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
@@ -243,7 +335,7 @@ class PoemTest(unittest.TestCase):
 
     def test_build_empty_passage_rejected(self) -> None:
         with self.assertRaises(ValueError):
-            build_passage("，。！", "空文稿", self.dictionary)
+            build_passage("，。！", "空文稿", self.words)
 
 
 class SessionTest(unittest.TestCase):

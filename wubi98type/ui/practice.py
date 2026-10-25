@@ -128,6 +128,11 @@ class PracticeView(Gtk.Box):
         self.passage_scroller.set_visible(False)
         content.append(self.passage_scroller)
 
+        self.segment_label = label("", "segment-label")
+        self.segment_label.set_halign(Gtk.Align.CENTER)
+        self.segment_label.set_visible(False)
+        content.append(self.segment_label)
+
         self.code_row = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=10)
         self.code_row.set_halign(Gtk.Align.CENTER)
         self.code_boxes: list[Gtk.Label] = []
@@ -233,6 +238,7 @@ class PracticeView(Gtk.Box):
         else:
             self.char_holder.set_visible(True)
             self.passage_scroller.set_visible(False)
+            self.segment_label.set_visible(False)
             self.char_label.set_label("")
         self._refresh()
         self._timer_id = GLib.timeout_add(200, self._tick)
@@ -322,6 +328,7 @@ class PracticeView(Gtk.Box):
                 self.char_label.set_label("")
             else:
                 self._update_passage(session)
+            self.segment_label.set_visible(False)
             for box in self.code_boxes:
                 box.set_visible(False)
             self.mnemonic_box.set_visible(False)
@@ -333,6 +340,11 @@ class PracticeView(Gtk.Box):
                 self._apply_size_class(len(current.text))
             else:
                 self._update_passage(session)
+                kind = "词组" if len(current.text) > 1 else "单字"
+                self.segment_label.set_label(
+                    f"{current.text} · {kind} · {len(current.code)} 码"
+                )
+                self.segment_label.set_visible(True)
             self._update_boxes(current.code, session.typed)
             self.keyboard.set_expected(session.expected)
             self._update_mnemonic(session.expected)
@@ -429,22 +441,25 @@ class PracticeView(Gtk.Box):
             )
             self._passage_current = None
         while self._passage_done_upto < index:
+            item = passage.items[self._passage_done_upto]
             position = passage.positions[self._passage_done_upto]
             buffer.apply_tag_by_name(
                 "done",
                 buffer.get_iter_at_offset(position),
-                buffer.get_iter_at_offset(position + 1),
+                buffer.get_iter_at_offset(position + len(item.text)),
             )
             self._passage_done_upto += 1
         if index < len(passage.positions):
+            item = passage.items[index]
             position = passage.positions[index]
+            end = position + len(item.text)
             start_iter = buffer.get_iter_at_offset(position)
             buffer.apply_tag_by_name(
                 "current",
                 start_iter,
-                buffer.get_iter_at_offset(position + 1),
+                buffer.get_iter_at_offset(end),
             )
-            self._passage_current = (position, position + 1)
+            self._passage_current = (position, end)
             self.passage_view.scroll_to_iter(start_iter, 0.25, False, 0.0, 0.35)
         else:
             self.passage_view.scroll_to_iter(
@@ -455,16 +470,21 @@ class PracticeView(Gtk.Box):
         session = self.session
         if session is None:
             return
-        position = min(session.index + 1, session.total)
-        if session.is_finished:
-            position = session.total
-        self.progress_value.set_label(f"{position}/{session.total}")
+        if self.passage is not None:
+            total = max(1, self.passage.char_count)
+            done = total if session.is_finished else session.chars_completed
+            self.progress_value.set_label(f"{done}/{total}")
+            fraction = done / total
+        else:
+            position = min(session.index + 1, session.total)
+            if session.is_finished:
+                position = session.total
+            self.progress_value.set_label(f"{position}/{session.total}")
+            fraction = session.progress
         self.speed_value.set_label(f"{session.speed:.0f}")
         self.accuracy_value.set_label(f"{session.accuracy:.0f}%")
         self.time_value.set_label(_clock(session.elapsed))
-        self.progress_bar.set_fraction(
-            min(1.0, max(0.0, session.progress))
-        )
+        self.progress_bar.set_fraction(min(1.0, max(0.0, fraction)))
 
     def _set_feedback(self, text: str, kind: str) -> None:
         self.feedback_label.set_label(text)

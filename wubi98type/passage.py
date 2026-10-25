@@ -1,4 +1,4 @@
-"""文稿跟打：把一段中文文本转换成按顺序练习的单字序列。"""
+"""文稿跟打：把一段中文文本按最长词组优先切分成练习序列。"""
 
 from __future__ import annotations
 
@@ -6,8 +6,9 @@ import codecs
 from dataclasses import dataclass
 from pathlib import Path
 
-from .data import Dictionary, Entry, is_hanzi
+from .data import Entry
 from .drill import Session
+from .encoding import WordIndex
 
 
 @dataclass(frozen=True, slots=True)
@@ -19,6 +20,10 @@ class Passage:
 
     @property
     def char_count(self) -> int:
+        return sum(len(item.text) for item in self.items)
+
+    @property
+    def segment_count(self) -> int:
         return len(self.items)
 
     def session(self, **kwargs) -> Session:
@@ -55,28 +60,23 @@ def read_text_file(path: Path) -> str:
 def build_passage(
     text: str,
     title: str,
-    dictionary: Dictionary,
+    index: WordIndex,
 ) -> Passage:
-    """提取可打字的汉字及其在原文中的位置。
+    """按最长词组优先切分，单字使用最少击键编码。
 
     标点、空格、换行不参与输入，但仍会显示在文稿中。
     """
     text = normalise_text(text).strip("\n")
-    items: list[Entry] = []
-    positions: list[int] = []
-    for index, char in enumerate(text):
-        if not is_hanzi(char, dictionary.extended):
-            continue
-        entry = dictionary.entry_for(char)
-        if entry is None:
-            continue
-        items.append(entry)
-        positions.append(index)
+    segments = index.segment(text)
+    items = tuple(
+        Entry(segment.text, segment.code) for segment in segments
+    )
+    positions = tuple(segment.start for segment in segments)
     if not items:
         raise ValueError("文稿中没有可练习的汉字")
     return Passage(
         title=title,
         text=text,
-        items=tuple(items),
-        positions=tuple(positions),
+        items=items,
+        positions=positions,
     )

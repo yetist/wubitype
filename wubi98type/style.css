@@ -87,6 +87,11 @@ dropdown {
   font-size: 20px;
 }
 
+.segment-label {
+  font-size: 13px;
+  opacity: 0.75;
+}
+
 .big-char {
   font-weight: 700;
 }
@@ -280,5 +285,30 @@ progressbar.practice-progress > trough > progress {
   font-size: 11px;
   font-weight: 700;
   letter-spacing: 1px;
+  opacity: 0.55;
+}
+
+.encode-summary {
+  background-color: alpha(@theme_fg_color, 0.05);
+  border-radius: 12px;
+  padding: 12px;
+}
+
+.encode-total-code {
+  color: #3584e4;
+  font-family: monospace;
+  font-size: 18px;
+  font-weight: 700;
+}
+
+.encode-total-code-dim {
+  font-family: monospace;
+  font-size: 14px;
+  opacity: 0.7;
+}
+
+.encode-full-code {
+  font-family: monospace;
+  font-size: 11px;
   opacity: 0.55;
 }

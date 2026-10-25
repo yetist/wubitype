@@ -20,6 +20,7 @@ from ..data import (  # noqa: E402
     default_data_dir,
 )
 from ..drill import Session  # noqa: E402
+from ..encoding import WordIndex  # noqa: E402
 from ..lookup import ReverseLookup  # noqa: E402
 from ..passage import Passage, build_passage, read_text_file  # noqa: E402
 from ..poems import POEM_BY_ID  # noqa: E402
@@ -50,7 +51,7 @@ class MainWindow(Gtk.ApplicationWindow):
         header.set_title_widget(title)
 
         menu = Gio.Menu()
-        menu.append("编码反查", "win.lookup")
+        menu.append("编码查询", "win.lookup")
         menu.append("查看键位图", "win.keymap")
         menu.append("清空最佳成绩", "win.clear-records")
         menu.append("关于", "win.about")
@@ -59,7 +60,7 @@ class MainWindow(Gtk.ApplicationWindow):
         header.pack_end(menu_button)
 
         lookup_button = Gtk.Button(icon_name="edit-find-symbolic")
-        lookup_button.set_tooltip_text("编码反查")
+        lookup_button.set_tooltip_text("编码查询")
         lookup_button.connect("clicked", lambda _button: self._show_lookup())
         header.pack_end(lookup_button)
         self.set_titlebar(header)
@@ -134,10 +135,11 @@ class MainWindow(Gtk.ApplicationWindow):
             return
         try:
             lookup = ReverseLookup.load(extended=self.config.extended)
+            words = WordIndex.load(extended=self.config.extended)
         except (OSError, FileNotFoundError) as error:
             self._alert("无法加载码表", str(error))
             return
-        dialog = LookupDialog(self, lookup)
+        dialog = LookupDialog(self, lookup, words)
         if (
             self.stack.get_visible_child_name() == "practice"
             and self.practice.session is not None
@@ -296,7 +298,8 @@ class MainWindow(Gtk.ApplicationWindow):
                 raise ValueError("找不到所选古诗")
             text = poem.text
             title = f"《{poem.display_title}》"
-        return build_passage(text, title, self.dictionary)
+        index = WordIndex.load(extended=self.config.extended)
+        return build_passage(text, title, index)
 
     def _finish_session(self, session: Session, *, aborted: bool = False) -> None:
         record = False
