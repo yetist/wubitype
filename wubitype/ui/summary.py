@@ -124,7 +124,6 @@ class SummaryView(Gtk.ScrolledWindow):
         outer.append(buttons)
 
         self.session: Session | None = None
-        self._focus_token = 0
 
     @staticmethod
     def _hero(unit: str, caption: str) -> tuple[Gtk.Box, Gtk.Label]:
@@ -158,16 +157,6 @@ class SummaryView(Gtk.ScrolledWindow):
         self.details["streak"].set_label(str(session.best_streak))
         self.details["chars"].set_label(str(session.chars_completed))
         self._fill_mistakes(session)
-        target = self.again_button
-        self._focus_token += 1
-        token = self._focus_token
-
-        def focus_default() -> bool:
-            if token == self._focus_token and self.get_mapped():
-                target.grab_focus()
-            return False
-
-        GLib.idle_add(focus_default)
 
     def retry_mistakes(self) -> None:
         if self.retry_button.get_sensitive():
