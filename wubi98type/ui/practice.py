@@ -82,6 +82,7 @@ class PracticeView(Gtk.Box):
         self.meta_label = label("", "meta")
         self.meta_label.set_xalign(0)
         self.meta_label.set_hexpand(True)
+        self.meta_label.set_ellipsize(Pango.EllipsizeMode.END)
         self.streak_label = label("", "streak")
         self.streak_label.set_xalign(1)
         header_row.append(self.meta_label)

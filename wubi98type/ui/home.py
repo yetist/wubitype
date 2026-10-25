@@ -12,13 +12,17 @@ from gi.repository import Gio, GLib, Gtk  # noqa: E402
 
 from ..config import Config  # noqa: E402
 from ..data import CHAR_SCOPES, PHRASE_SCOPES, is_hanzi  # noqa: E402
-from ..keymap import MNEMONICS, MNEMONIC_ROWS  # noqa: E402
+from ..keymap import (  # noqa: E402
+    KEY_SCOPE_OPTIONS,
+    MNEMONICS,
+    MNEMONIC_ROWS,
+)
 from ..passage import read_text_file  # noqa: E402
 from ..poems import POEMS  # noqa: E402
 from .widgets import card, dropdown, label  # noqa: E402
 
-MODE_LABELS = ("单字练习", "词组练习", "混合练习", "文稿跟打")
-MODE_IDS = ("char", "phrase", "mixed", "text")
+MODE_LABELS = ("单字练习", "词组练习", "混合练习", "键位专项", "文稿跟打")
+MODE_IDS = ("char", "phrase", "mixed", "keys", "text")
 HINT_LABELS = ("显示完整编码", "逐码提示（推荐）", "关闭提示")
 HINT_IDS = ("full", "next", "none")
 TEXT_CUSTOM_ID = "custom"
@@ -212,6 +216,9 @@ class HomeView(Gtk.ScrolledWindow):
         elif mode == "text":
             options = TEXT_SCOPE_OPTIONS
             target = self.config.text_scope
+        elif mode == "keys":
+            options = KEY_SCOPE_OPTIONS
+            target = self.config.key_scope
         else:
             options = CHAR_SCOPES
             target = self.config.char_scope
@@ -220,7 +227,7 @@ class HomeView(Gtk.ScrolledWindow):
         self.scope_dd.set_model(
             Gtk.StringList.new([scope_label for scope_label, _sid in options])
         )
-        self.scope_dd.set_enable_search(mode == "text")
+        self.scope_dd.set_enable_search(mode in ("text", "keys"))
         if target not in self._scope_ids:
             target = self._scope_ids[0]
         self.scope_dd.set_selected(self._scope_ids.index(target))
@@ -240,6 +247,8 @@ class HomeView(Gtk.ScrolledWindow):
             self._update_custom_row()
             if scope_id == TEXT_CUSTOM_ID and not self.config.text_path:
                 GLib.idle_add(self._choose_text_file)
+        elif self.config.mode == "keys":
+            self.config.key_scope = scope_id
         else:
             self.config.char_scope = scope_id
 
@@ -267,6 +276,8 @@ class HomeView(Gtk.ScrolledWindow):
                 self.config.phrase_scope = scope_id
             elif self.config.mode == "text":
                 self.config.text_scope = scope_id
+            elif self.config.mode == "keys":
+                self.config.key_scope = scope_id
             else:
                 self.config.char_scope = scope_id
         self.config.count = self.count_spin.get_value_as_int()

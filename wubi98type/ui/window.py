@@ -21,6 +21,7 @@ from ..data import (  # noqa: E402
 )
 from ..drill import Session  # noqa: E402
 from ..encoding import WordIndex  # noqa: E402
+from ..keymap import KEY_SCOPE_LABELS  # noqa: E402
 from ..lookup import ReverseLookup  # noqa: E402
 from ..passage import Passage, build_passage, read_text_file  # noqa: E402
 from ..poems import POEM_BY_ID  # noqa: E402
@@ -255,6 +256,7 @@ class MainWindow(Gtk.ApplicationWindow):
                     self.config.mode,
                     self.config.char_scope,
                     self.config.phrase_scope,
+                    self.config.key_scope,
                 )
                 total = self.config.count
                 meta = meta or self._meta_label(total)
@@ -272,6 +274,11 @@ class MainWindow(Gtk.ApplicationWindow):
     def _meta_label(self, total: int) -> str:
         mode = MODE_IDS.index(self.config.mode)
         mode_label = MODE_LABELS[mode]
+        if self.config.mode == "keys":
+            scope_label = KEY_SCOPE_LABELS.get(
+                self.config.key_scope, "全部键位"
+            )
+            return f"{mode_label} · {scope_label} · {total} 题"
         if self.config.mode == "phrase":
             options = PHRASE_SCOPES
             scope_id = self.config.phrase_scope

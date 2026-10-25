@@ -81,6 +81,31 @@ class DataTest(unittest.TestCase):
         self.assertEqual(buckets[0][0], self.dictionary.char_scope("first"))
         self.assertTrue(all(len(e.text) <= 4 for e in buckets[1][0]))
 
+    def test_key_and_zone_scopes(self) -> None:
+        from wubi98type.keymap import ZONE_KEYS
+
+        zone_total = 0
+        for zone, keys in ZONE_KEYS.items():
+            entries = self.dictionary.key_scope(f"zone-{zone}")
+            self.assertGreater(len(entries), 0, zone)
+            self.assertTrue(all(e.code[0] in keys for e in entries), zone)
+            zone_total += len(entries)
+        self.assertEqual(zone_total, len(self.dictionary.chars))
+        for letter in "abcdefghijklmnopqrstuvwxy":
+            entries = self.dictionary.key_scope(f"key-{letter}")
+            self.assertGreater(len(entries), 0, letter)
+            self.assertTrue(all(e.code.startswith(letter) for e in entries))
+        self.assertEqual(self.dictionary.key_scope("key-z"), [])
+
+    def test_key_buckets(self) -> None:
+        buckets = self.dictionary.buckets(
+            "keys", "level2", "two", "key-a"
+        )
+        self.assertEqual(len(buckets), 1)
+        self.assertTrue(
+            all(entry.code.startswith("a") for entry in buckets[0][0])
+        )
+
 
 class KeymapTest(unittest.TestCase):
     def test_mnemonics_cover_every_key(self) -> None:
@@ -508,6 +533,20 @@ class ConfigTest(unittest.TestCase):
         config = Config(text_scope="custom", text_path=123).normalise()
         self.assertEqual(config.text_scope, "custom")
         self.assertEqual(config.text_path, "")
+
+    def test_key_scope_normalised(self) -> None:
+        self.assertEqual(
+            Config(key_scope="key-a").normalise().key_scope, "key-a"
+        )
+        self.assertEqual(
+            Config(key_scope="zone-5").normalise().key_scope, "zone-5"
+        )
+        self.assertEqual(
+            Config(key_scope="key-z").normalise().key_scope, "zone-1"
+        )
+        self.assertEqual(
+            Config(key_scope="zone-9").normalise().key_scope, "zone-1"
+        )
 
 
 if __name__ == "__main__":

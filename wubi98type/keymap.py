@@ -103,6 +103,31 @@ MNEMONIC_ROWS: tuple[tuple[str, str], ...] = (
 )
 
 ZONE_NAMES = {1: "横", 2: "竖", 3: "撇", 4: "捺", 5: "折"}
+ZONE_KEYS: dict[int, str] = {
+    1: "gfdsa",
+    2: "hjklm",
+    3: "trewq",
+    4: "yuiop",
+    5: "nbvcx",
+}
+KEY_SCOPE_OPTIONS: tuple[tuple[str, str], ...] = tuple(
+    (
+        f"{zone} 区 · {ZONE_NAMES[zone]}（{' '.join(key.upper() for key in keys)}）",
+        f"zone-{zone}",
+    )
+    for zone, keys in ZONE_KEYS.items()
+) + tuple(
+    (
+        f"{letter.upper()} 键 · {KEYMAP[letter].code} {KEYMAP[letter].name}"
+        f" · {MNEMONICS[letter]}",
+        f"key-{letter}",
+    )
+    for keys in ZONE_KEYS.values()
+    for letter in keys
+)
+KEY_SCOPE_LABELS: dict[str, str] = {
+    scope_id: scope_label for scope_label, scope_id in KEY_SCOPE_OPTIONS
+}
 ZONE_COLORS = {
     1: (0.84, 0.38, 0.32),
     2: (0.24, 0.58, 0.34),

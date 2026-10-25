@@ -21,6 +21,8 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Iterable
 
+from .keymap import ZONE_KEYS
+
 CODE_LETTERS = frozenset("abcdefghijklmnopqrstuvwxy")
 
 #: 98 版一级简码（每个键位一个高频字）。
@@ -247,13 +249,32 @@ class Dictionary:
             return [e for e in self.phrases if len(e.text) >= 5]
         return list(self.phrases)
 
+    def key_scope(self, scope: str) -> list[Entry]:
+        """按全码首码筛选单字，用于分区/键位专项练习。"""
+        if scope.startswith("zone-"):
+            try:
+                zone = int(scope[5:])
+            except ValueError:
+                return []
+            keys = ZONE_KEYS.get(zone, "")
+            return [e for e in self.chars if e.code[0] in keys]
+        if scope.startswith("key-"):
+            key = scope[4:]
+            if len(key) != 1:
+                return []
+            return [e for e in self.chars if e.code.startswith(key)]
+        return []
+
     def buckets(
         self,
         mode: str,
         char_scope: str = "level2",
         phrase_scope: str = "two",
+        key_scope: str = "zone-1",
     ) -> list[tuple[list[Entry], float]]:
         """返回 ``[(题目列表, 权重), ...]``，供出题器使用。"""
+        if mode == "keys":
+            return [(self.key_scope(key_scope), 1.0)]
         if mode == "phrase":
             return [(self.phrase_scope(phrase_scope), 1.0)]
         if mode == "mixed":
