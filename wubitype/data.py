@@ -32,8 +32,8 @@ FIRST_LEVEL_CHARS = "一地在要工上是中国同和的有人我主产不为�
 KEY_NAME_CHARS = SCHEMES["98"].key_names
 
 CHAR_SCOPES: tuple[tuple[str, str], ...] = (
-    ("一级简码（25 字）", "first"),
     ("键名汉字", "keyname"),
+    ("一级简码（25 字）", "first"),
     ("二级简码（常用）", "level2"),
     ("三级简码", "level3"),
     ("全码单字", "full"),
