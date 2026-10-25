@@ -83,13 +83,16 @@ def is_hanzi(char: str, extended: bool = False) -> bool:
 def default_data_dir() -> Path:
     """按优先级寻找词库目录。"""
     candidates: list[Path] = []
-    env = os.environ.get("WUBI98TYPE_DATA")
+    env = os.environ.get("WUBITYPE_DATA") or os.environ.get(
+        "WUBI98TYPE_DATA"
+    )
     if env:
         candidates.append(Path(env).expanduser())
     candidates.append(Path.cwd())
     package_dir = Path(__file__).resolve().parent
     candidates.append(package_dir.parent)
     candidates.append(package_dir)
+    candidates.append(Path.home() / ".local/share/wubitype")
     candidates.append(Path.home() / ".local/share/wubi98type")
     for path in candidates:
         if any(
@@ -99,7 +102,7 @@ def default_data_dir() -> Path:
             return path
     raise FileNotFoundError(
         "找不到词库文件 wubi98.main.txt 或 wubi86.main.txt。"
-        "请把词库放在当前目录，或设置环境变量 WUBI98TYPE_DATA 指向词库目录。"
+        "请把词库放在当前目录，或设置环境变量 WUBITYPE_DATA 指向词库目录。"
     )
 
 

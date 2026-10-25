@@ -16,6 +16,12 @@ PHRASE_SCOPE_IDS = ("two", "three", "four", "multi", "all")
 def config_path() -> Path:
     base = os.environ.get("XDG_CONFIG_HOME")
     root = Path(base) if base else Path.home() / ".config"
+    return root / "wubitype" / "config.json"
+
+
+def legacy_config_path() -> Path:
+    base = os.environ.get("XDG_CONFIG_HOME")
+    root = Path(base) if base else Path.home() / ".config"
     return root / "wubi98type" / "config.json"
 
 
@@ -89,7 +95,13 @@ class Config:
 
 
 def load_config(path: Path | None = None) -> Config:
-    path = path or config_path()
+    explicit = path is not None
+    if path is None:
+        path = config_path()
+        if not path.is_file():
+            legacy = legacy_config_path()
+            if legacy.is_file():
+                path = legacy
     try:
         data = json.loads(path.read_text(encoding="utf-8"))
     except (OSError, ValueError):
@@ -97,7 +109,12 @@ def load_config(path: Path | None = None) -> Config:
     if not isinstance(data, dict):
         return Config()
     known = {field_name for field_name in Config.__dataclass_fields__}
-    return Config(**{k: v for k, v in data.items() if k in known}).normalise()
+    config = Config(
+        **{k: v for k, v in data.items() if k in known}
+    ).normalise()
+    if not explicit and path != config_path():
+        save_config(config)
+    return config
 
 
 def save_config(config: Config, path: Path | None = None) -> None:

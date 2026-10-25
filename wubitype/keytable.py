@@ -91,10 +91,14 @@ def find_table_image(version: str = "98") -> Path | None:
     """按与词库相同的思路寻找对应版本的键位图。"""
     scheme = get_scheme(version)
     candidates: list[Path] = []
-    explicit = os.environ.get("WUBI98TYPE_TABLE")
+    explicit = os.environ.get("WUBITYPE_TABLE") or os.environ.get(
+        "WUBI98TYPE_TABLE"
+    )
     if explicit:
         candidates.append(Path(explicit).expanduser())
-    data_dir = os.environ.get("WUBI98TYPE_DATA")
+    data_dir = os.environ.get("WUBITYPE_DATA") or os.environ.get(
+        "WUBI98TYPE_DATA"
+    )
     if data_dir:
         candidates.append(Path(data_dir).expanduser() / scheme.table_image)
     package_dir = Path(__file__).resolve().parent
@@ -103,6 +107,7 @@ def find_table_image(version: str = "98") -> Path | None:
             Path.cwd() / scheme.table_image,
             package_dir.parent / scheme.table_image,
             package_dir / scheme.table_image,
+            Path.home() / ".local/share/wubitype" / scheme.table_image,
             Path.home() / ".local/share/wubi98type" / scheme.table_image,
         )
     )

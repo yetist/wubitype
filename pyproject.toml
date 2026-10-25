@@ -3,23 +3,23 @@ requires = ["setuptools>=68"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "wubi98type"
+name = "wubitype"
 version = "0.1.0"
-description = "GTK4 五笔 98 / 86 版打字练习软件"
+description = "GTK4 五笔打字通（支持五笔 98 / 86 版）"
 readme = "README.md"
 requires-python = ">=3.10"
 license = { text = "MIT" }
-authors = [{ name = "wubi98type contributors" }]
+authors = [{ name = "wubitype contributors" }]
 dependencies = ["PyGObject>=3.42"]
 
 [project.scripts]
-wubi98type = "wubi98type.app:main"
+wubitype = "wubitype.app:main"
 
 [project.optional-dependencies]
 dev = ["pytest>=7"]
 
 [tool.setuptools]
-packages = ["wubi98type", "wubi98type.ui"]
+packages = ["wubitype", "wubitype.ui"]
 
 [tool.setuptools.package-data]
-wubi98type = ["style.css"]
+wubitype = ["style.css"]

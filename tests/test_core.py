@@ -2,9 +2,10 @@ import random
 import tempfile
 import unittest
 from pathlib import Path
+from unittest.mock import patch
 
-from wubi98type.config import Config, load_config, save_config
-from wubi98type.data import (
+from wubitype.config import Config, load_config, save_config
+from wubitype.data import (
     FIRST_LEVEL_CHARS,
     KEY_NAME_CHARS,
     Dictionary,
@@ -13,15 +14,15 @@ from wubi98type.data import (
     is_hanzi,
     parse_table,
 )
-from wubi98type.drill import PressResult, Session
-from wubi98type.encoding import WordIndex
-from wubi98type.keymap import (
+from wubitype.drill import PressResult, Session
+from wubitype.encoding import WordIndex
+from wubitype.keymap import (
     KEYMAP,
     KEYMAP_86,
     MNEMONICS,
     MNEMONICS_86,
 )
-from wubi98type.keytable import (
+from wubitype.keytable import (
     KEY_BOXES,
     KEY_BOXES_86,
     TABLE_SIZE,
@@ -29,10 +30,10 @@ from wubi98type.keytable import (
     KeyTableImages,
     find_table_image,
 )
-from wubi98type.lookup import ReverseLookup, clean_code
-from wubi98type.passage import build_passage, read_text_file
-from wubi98type.poems import POEMS, POEM_BY_ID
-from wubi98type.schemes import SCHEMES, get_scheme
+from wubitype.lookup import ReverseLookup, clean_code
+from wubitype.passage import build_passage, read_text_file
+from wubitype.poems import POEMS, POEM_BY_ID
+from wubitype.schemes import SCHEMES, get_scheme
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -96,7 +97,7 @@ class DataTest(unittest.TestCase):
         self.assertTrue(all(len(e.text) <= 4 for e in buckets[1][0]))
 
     def test_key_and_zone_scopes(self) -> None:
-        from wubi98type.keymap import ZONE_KEYS
+        from wubitype.keymap import ZONE_KEYS
 
         zone_total = 0
         for zone, keys in ZONE_KEYS.items():
@@ -681,6 +682,20 @@ class ConfigTest(unittest.TestCase):
         ).normalise()
         self.assertIn("98:char", config.best)
         self.assertNotIn("char", config.best)
+
+    def test_legacy_config_migrates_to_new_directory(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            old = Path(tmp) / "wubi98type" / "config.json"
+            old.parent.mkdir(parents=True)
+            old.write_text(
+                '{"version": "86", "count": 7}', encoding="utf-8"
+            )
+            with patch.dict("os.environ", {"XDG_CONFIG_HOME": tmp}):
+                config = load_config()
+                new = Path(tmp) / "wubitype" / "config.json"
+                self.assertTrue(new.is_file())
+        self.assertEqual(config.version, "86")
+        self.assertEqual(config.count, 7)
 
 
 if __name__ == "__main__":

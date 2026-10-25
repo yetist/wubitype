@@ -1,6 +1,6 @@
-# 五笔 98 / 86 打字练习
+# 五笔打字通
 
-用 GTK4 写的五笔字型 98 / 86 版打字练习器。按所选版本的码表出题，实时判定编码，统计速度、准确率与错题，并配有可高亮当前按键的虚拟键盘。
+五笔打字通是基于 GTK4 的五笔 98 / 86 版打字练习软件。按所选版本的码表出题，实时判定编码，统计速度、准确率与错题，并配有可高亮当前按键的虚拟键盘。
 
 ## 功能
 
@@ -30,24 +30,24 @@
 sudo apt install python3-gi gir1.2-gtk-4.0
 
 # 在仓库目录直接运行（需要同目录下的 wubi98* / wubi86* 码表）
-python3 -m wubi98type
+python3 -m wubitype
 ```
 
 安装为命令：
 
 ```bash
 pip install .
-wubi98type
+wubitype
 ```
 
 词库按以下顺序查找：
 
-1. 环境变量 `WUBI98TYPE_DATA` 指向的目录；
+1. 环境变量 `WUBITYPE_DATA` 指向的目录；
 2. 当前工作目录；
 3. 仓库/安装包所在目录；
-4. `~/.local/share/wubi98type/`。
+4. `~/.local/share/wubitype/`。
 
-只要目录中有 `wubi98.main.txt` 或 `wubi86.main.txt` 即可；标准码表同时包含单字和词组编码。扩展字库需要对应的 `wubi98.large.txt` / `wubi86.large.txt`。当前键位图形默认从同目录的 `wubi98-table.png` / `wubi86-table.png` 裁剪，也可用 `WUBI98TYPE_TABLE` 直接指定图片路径。
+只要目录中有 `wubi98.main.txt` 或 `wubi86.main.txt` 即可；标准码表同时包含单字和词组编码。扩展字库需要对应的 `wubi98.large.txt` / `wubi86.large.txt`。当前键位图形默认从同目录的 `wubi98-table.png` / `wubi86-table.png` 裁剪，也可用 `WUBITYPE_TABLE` 直接指定图片路径。
 
 ## 使用
 
@@ -86,7 +86,7 @@ wubi98type
 | `Tab` | 跳过当前题（会记入错题） |
 | `Esc` | 结束本组并查看成绩 |
 
-设置和最佳成绩保存在 `~/.config/wubi98type/config.json`（遵循 `XDG_CONFIG_HOME`）。
+设置和最佳成绩保存在 `~/.config/wubitype/config.json`（遵循 `XDG_CONFIG_HOME`）。
 
 ## 分级说明
 
@@ -117,7 +117,7 @@ python3 -m unittest discover -s tests -v
 代码结构：
 
 ```
-wubi98type/
+wubitype/
   data.py        词库解析、分级、题目池
   drill.py       出题与判定状态机（可独立测试）
   encoding.py    汉字查码、最长词组切分、最少击键编码

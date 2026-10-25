@@ -42,13 +42,13 @@ class MainWindow(Gtk.ApplicationWindow):
         self._lookup_paused: Session | None = None
         self._recordable = True
 
-        self.set_title("五笔打字练习")
+        self.set_title("五笔打字通")
         self.set_default_size(980, 880)
         self.set_size_request(880, 700)
 
         header = Gtk.HeaderBar()
         header.set_show_title_buttons(True)
-        title = label("五笔打字练习", "header-title")
+        title = label("五笔打字通", "header-title")
         header.set_title_widget(title)
 
         menu = Gio.Menu()
@@ -119,15 +119,15 @@ class MainWindow(Gtk.ApplicationWindow):
 
     def _show_about(self) -> None:
         dialog = Gtk.AboutDialog(transient_for=self, modal=True)
-        dialog.set_program_name("五笔打字练习")
+        dialog.set_program_name("五笔打字通")
         dialog.set_version(__version__)
         dialog.set_comments(
-            "用 GTK4 编写的五笔 98 / 86 版打字练习器。\n"
-            "支持码元规则出题、键位提示、速度与准确率统计、错题重练。"
+            "用 GTK4 编写的五笔打字通，支持五笔 98 / 86 版。\n"
+            "提供码元规则出题、键位提示、速度与准确率统计、错题重练。"
         )
         dialog.set_license_type(Gtk.License.MIT_X11)
         dialog.set_logo_icon_name("input-keyboard-symbolic")
-        dialog.set_authors(["wubi98type contributors"])
+        dialog.set_authors(["wubitype contributors"])
         dialog.present()
 
     def _show_lookup(self) -> None:
@@ -291,6 +291,8 @@ class MainWindow(Gtk.ApplicationWindow):
         self.practice.start(session, meta, self.config.hint, passage=passage)
         self.practice_page.get_vadjustment().set_value(0)
         self.stack.set_visible_child(self.practice_page)
+        # 清除“开始练习”按钮焦点，确保 Tab/Esc 等按键交给练习页处理
+        self.set_focus(None)
 
     def _meta_label(self, total: int) -> str:
         scheme = get_scheme(self.config.version)
@@ -355,8 +357,8 @@ class MainWindow(Gtk.ApplicationWindow):
         self.home.sync_config()
         self._start_session()
 
-    def _abort(self) -> None:
-        session = self.practice.session
+    def _abort(self, session: Session | None = None) -> None:
+        session = session or self.practice.session
         if session is None:
             self._go_home()
             return

@@ -52,9 +52,7 @@ class HomeView(Gtk.ScrolledWindow):
         self.set_child(outer)
 
         heading = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=6)
-        self.title_label = label(
-            f"五笔 {config.version} 打字练习", "title-xl"
-        )
+        self.title_label = label("五笔打字通", "title-xl")
         self.title_label.set_xalign(0)
         subtitle = label(
             "支持五笔 98 版 / 86 版码元规则，边打边记键位。选择范围后即可开始。",
@@ -198,7 +196,6 @@ class HomeView(Gtk.ScrolledWindow):
             return
         self.config.version = VERSION_IDS[drop.get_selected()]
         self._scheme = get_scheme(self.config.version)
-        self.title_label.set_label(f"五笔 {self.config.version} 打字练习")
         self._rebuild_scope()
         self._rebuild_mnemonic_grid()
         self.refresh_best()
