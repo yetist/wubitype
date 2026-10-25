@@ -30,6 +30,8 @@ class LookupDialog(Gtk.Window):
         self._updating = False
         self._minimal_code = ""
         self._full_code = ""
+        self._nav_rows: list[tuple[Gtk.ListBoxRow, object]] = []
+        self._nav_index: int | None = None
 
         self.set_default_size(800, 700)
         self.set_size_request(600, 460)
@@ -109,6 +111,7 @@ class LookupDialog(Gtk.Window):
         scroller.add_css_class("lookup-scroller")
         scroller.set_child(self.listbox)
         page.append(scroller)
+        self.reverse_scroller = scroller
 
         footer = label("点击结果可复制汉字", "hint")
         footer.set_xalign(0.5)
@@ -193,6 +196,7 @@ class LookupDialog(Gtk.Window):
         scroller.add_css_class("lookup-scroller")
         scroller.set_child(self.encode_list)
         page.append(scroller)
+        self.encode_scroller = scroller
 
         self.encode_feedback = label("点击结果可复制编码", "hint")
         self.encode_feedback.set_xalign(0.5)
@@ -200,13 +204,42 @@ class LookupDialog(Gtk.Window):
         return page
 
     # -- 通用 ---------------------------------------------------------
-    def _on_key_pressed(self, _controller, keyval, _keycode, _state) -> bool:
+    def _on_key_pressed(self, _controller, keyval, _keycode, state) -> bool:
+        control = bool(state & Gdk.ModifierType.CONTROL_MASK)
+        lowered = Gdk.keyval_to_lower(keyval)
+
+        if control and lowered == Gdk.KEY_1:
+            self.stack.set_visible_child_name("reverse")
+            self._focus_current()
+            return True
+        if control and lowered == Gdk.KEY_2:
+            self.stack.set_visible_child_name("encode")
+            self._focus_current()
+            return True
+        if control and lowered == Gdk.KEY_l:
+            self._focus_current()
+            return True
         if keyval == Gdk.KEY_Escape:
             self.close()
             return True
+        if keyval in (Gdk.KEY_Up, Gdk.KEY_KP_Up):
+            return self._move_nav(-1)
+        if keyval in (Gdk.KEY_Down, Gdk.KEY_KP_Down):
+            return self._move_nav(1)
+        if keyval in (Gdk.KEY_Return, Gdk.KEY_KP_Enter) or (
+            control and lowered == Gdk.KEY_c
+        ):
+            if self._nav_index is not None:
+                self._activate_nav()
+                return True
         return False
 
     def _on_page_changed(self, _stack, _pspec) -> None:
+        page = self.stack.get_visible_child_name()
+        if page == "reverse" and hasattr(self, "search"):
+            self._search(clean_code(self.search.get_text()))
+        elif page == "encode" and hasattr(self, "encode_search"):
+            self._on_encode_changed(self.encode_search)
         GLib.idle_add(self._focus_current)
 
     def _focus_current(self) -> bool:
@@ -215,6 +248,57 @@ class LookupDialog(Gtk.Window):
         else:
             self.search.grab_focus()
         return False
+
+    def _reset_nav(self) -> None:
+        for row, _action in self._nav_rows:
+            row.remove_css_class("lookup-selected")
+        self._nav_rows.clear()
+        self._nav_index = None
+
+    def _move_nav(self, delta: int) -> bool:
+        if not self._nav_rows:
+            return False
+        if self._nav_index is None:
+            index = 0 if delta > 0 else len(self._nav_rows) - 1
+        else:
+            index = max(
+                0,
+                min(len(self._nav_rows) - 1, self._nav_index + delta),
+            )
+        if index == self._nav_index:
+            return True
+        if self._nav_index is not None:
+            self._nav_rows[self._nav_index][0].remove_css_class(
+                "lookup-selected"
+            )
+        self._nav_index = index
+        row = self._nav_rows[index][0]
+        row.add_css_class("lookup-selected")
+        self._ensure_row_visible(row)
+        return True
+
+    def _activate_nav(self) -> None:
+        if self._nav_index is None:
+            return
+        _row, action = self._nav_rows[self._nav_index]
+        action()
+
+    def _ensure_row_visible(self, row: Gtk.ListBoxRow) -> None:
+        scroller = (
+            self.encode_scroller
+            if self.stack.get_visible_child_name() == "encode"
+            else self.reverse_scroller
+        )
+        adjustment = scroller.get_vadjustment()
+        allocation = row.get_allocation()
+        top = adjustment.get_value()
+        bottom = top + adjustment.get_page_size()
+        if allocation.y < top:
+            adjustment.set_value(allocation.y)
+        elif allocation.y + allocation.height > bottom:
+            adjustment.set_value(
+                allocation.y + allocation.height - adjustment.get_page_size()
+            )
 
     def _on_search_changed(self, _entry: Gtk.SearchEntry) -> None:
         if self._updating:
@@ -232,6 +316,7 @@ class LookupDialog(Gtk.Window):
 
     # -- 编码反查 -----------------------------------------------------
     def _search(self, query: str) -> None:
+        self._reset_nav()
         if not query:
             self._clear_rows(self.listbox)
             self.status.set_label("输入编码开始查询")
@@ -289,6 +374,14 @@ class LookupDialog(Gtk.Window):
         row.set_child(box)
         row.connect("activate", self._on_reverse_row_activated, item)
         self.listbox.append(row)
+        self._nav_rows.append(
+            (
+                row,
+                lambda row=row, item=item: self._on_reverse_row_activated(
+                    row, item
+                ),
+            )
+        )
 
     def _on_reverse_row_activated(self, _row: Gtk.ListBoxRow, item: LookupItem) -> None:
         self.get_clipboard().set(item.text)
@@ -296,6 +389,7 @@ class LookupDialog(Gtk.Window):
 
     # -- 汉字查码 -----------------------------------------------------
     def _on_encode_changed(self, _entry: Gtk.SearchEntry) -> None:
+        self._reset_nav()
         text = self.encode_search.get_text().strip()
         self._clear_rows(self.encode_list)
         if not text:
@@ -365,6 +459,14 @@ class LookupDialog(Gtk.Window):
         row.set_child(box)
         row.connect("activate", self._on_encode_row_activated, segment)
         self.encode_list.append(row)
+        self._nav_rows.append(
+            (
+                row,
+                lambda row=row, segment=segment: self._on_encode_row_activated(
+                    row, segment
+                ),
+            )
+        )
 
     def _on_encode_row_activated(self, _row: Gtk.ListBoxRow, segment: Segment) -> None:
         self.get_clipboard().set(segment.code)

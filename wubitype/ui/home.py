@@ -273,6 +273,14 @@ class HomeView(Gtk.ScrolledWindow):
         self._updating = False
         self.config.hint = hint
 
+    def toggle_version(self) -> None:
+        current = self.version_dd.get_selected()
+        self.version_dd.set_selected(0 if current == 1 else 1)
+
+    def choose_text_file(self) -> None:
+        if self.config.mode == "text":
+            self._choose_text_file()
+
     def _on_extended_changed(self, switch: Gtk.Switch, _pspec) -> None:
         if not self._updating:
             self.config.extended = switch.get_active()

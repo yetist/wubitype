@@ -509,6 +509,15 @@ class SessionTest(unittest.TestCase):
         self.assertTrue(session.backspace())
         self.assertFalse(session.backspace())
 
+    def test_clear_typed(self) -> None:
+        session = Session([([Entry("工", "aaaa")], 1.0)], 1)
+        session.press("a")
+        session.press("a")
+        self.assertTrue(session.clear_typed())
+        self.assertEqual(session.typed, [])
+        self.assertEqual(session.expected, "a")
+        self.assertFalse(session.clear_typed())
+
     def test_skip_records_mistake(self) -> None:
         session = Session(
             [([Entry("工", "aaaa"), Entry("戈", "agny")], 1.0)],

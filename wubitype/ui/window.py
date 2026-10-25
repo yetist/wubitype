@@ -28,6 +28,7 @@ from ..schemes import get_scheme  # noqa: E402
 from .home import MODE_IDS, MODE_LABELS, HomeView  # noqa: E402
 from .lookup import LookupDialog  # noqa: E402
 from .practice import PracticeView  # noqa: E402
+from .shortcuts import ShortcutsDialog  # noqa: E402
 from .summary import SummaryView  # noqa: E402
 from .widgets import label  # noqa: E402
 
@@ -39,6 +40,7 @@ class MainWindow(Gtk.ApplicationWindow):
         self.dictionary: Dictionary | None = None
         self._keymap_window: Gtk.Window | None = None
         self._lookup_window: LookupDialog | None = None
+        self._shortcuts_window: ShortcutsDialog | None = None
         self._lookup_paused: Session | None = None
         self._recordable = True
 
@@ -68,8 +70,10 @@ class MainWindow(Gtk.ApplicationWindow):
         menu.append_submenu("编码提示", hint_menu)
 
         menu.append("查看键位图", "win.keymap")
+        menu.append("快捷键", "win.shortcuts")
         menu.append("清空最佳成绩", "win.clear-records")
         menu.append("关于", "win.about")
+        menu.append("退出", "win.quit")
         menu_button = Gtk.MenuButton(icon_name="open-menu-symbolic", menu_model=menu)
         menu_button.set_tooltip_text("菜单")
         header.pack_end(menu_button)
@@ -136,7 +140,9 @@ class MainWindow(Gtk.ApplicationWindow):
             ("about", self._show_about),
             ("lookup", self._show_lookup),
             ("keymap", self._show_keymap),
+            ("shortcuts", self._show_shortcuts),
             ("clear-records", self._clear_records),
+            ("quit", self._quit),
         )
         for name, handler in actions:
             action = Gio.SimpleAction.new(name, None)
@@ -201,6 +207,7 @@ class MainWindow(Gtk.ApplicationWindow):
             self.stack.get_visible_child_name() == "practice"
             and self.practice.session is not None
             and not self.practice.session.is_finished
+            and not self.practice.session.is_paused
         ):
             self.practice.session.pause()
             self._lookup_paused = self.practice.session
@@ -214,6 +221,33 @@ class MainWindow(Gtk.ApplicationWindow):
             self._lookup_paused = None
         self._lookup_window = None
         return False
+
+    def _show_shortcuts(self) -> None:
+        if self._shortcuts_window is not None:
+            self._shortcuts_window.present()
+            return
+        dialog = ShortcutsDialog(self)
+        dialog.connect("close-request", self._on_shortcuts_closed)
+        self._shortcuts_window = dialog
+        dialog.present()
+
+    def _on_shortcuts_closed(self, _window: Gtk.Window) -> bool:
+        self._shortcuts_window = None
+        return False
+
+    def _quit(self) -> None:
+        save_config(self.config)
+        application = self.get_application()
+        if application is not None:
+            application.quit()
+
+    def _cycle_hint(self) -> None:
+        order = ("full", "next", "none")
+        try:
+            index = order.index(self.config.hint)
+        except ValueError:
+            index = 1
+        self._set_hint(order[(index + 1) % len(order)])
 
     def _show_keymap(self) -> None:
         if self._keymap_window is not None:
@@ -449,24 +483,65 @@ class MainWindow(Gtk.ApplicationWindow):
         _keycode: int,
         state: Gdk.ModifierType,
     ) -> bool:
-        if self.stack.get_visible_child_name() == "summary":
+        page = self.stack.get_visible_child_name()
+        lowered = Gdk.keyval_to_lower(keyval)
+        control = bool(state & Gdk.ModifierType.CONTROL_MASK)
+
+        # 全局快捷键
+        if control and lowered == Gdk.KEY_f:
+            self._show_lookup()
+            return True
+        if control and lowered == Gdk.KEY_q:
+            self._quit()
+            return True
+        if keyval == Gdk.KEY_F1:
+            self._show_shortcuts()
+            return True
+        if keyval == Gdk.KEY_F2:
+            self._show_keymap()
+            return True
+        if keyval == Gdk.KEY_F3:
+            self._cycle_hint()
+            return True
+
+        if page == "home":
+            if keyval == Gdk.KEY_F6:
+                self.home.toggle_version()
+                return True
+            if control and keyval in (
+                Gdk.KEY_Return,
+                Gdk.KEY_KP_Enter,
+            ):
+                self._start_from_home()
+                return True
+            if control and lowered == Gdk.KEY_o:
+                self.home.choose_text_file()
+                return True
+            return False
+
+        if page == "summary":
             if keyval == Gdk.KEY_Escape:
                 self._go_home()
                 return True
             if keyval in (Gdk.KEY_Return, Gdk.KEY_KP_Enter):
                 self.summary.again()
                 return True
-            if Gdk.keyval_to_lower(keyval) == Gdk.KEY_r:
+            if lowered == Gdk.KEY_r:
                 self.summary.retry_mistakes()
                 return True
             return False
-        if self.stack.get_visible_child_name() != "practice":
+
+        if page != "practice":
             return False
-        if (
-            state & Gdk.ModifierType.CONTROL_MASK
-            and Gdk.keyval_to_lower(keyval) == Gdk.KEY_r
-        ):
+
+        if control and lowered == Gdk.KEY_r:
             self._restart()
+            return True
+        if control and lowered == Gdk.KEY_p:
+            self.practice.toggle_pause()
+            return True
+        if control and keyval == Gdk.KEY_BackSpace:
+            self.practice.clear_typed()
             return True
         if state & (
             Gdk.ModifierType.CONTROL_MASK
@@ -483,10 +558,12 @@ class MainWindow(Gtk.ApplicationWindow):
         if keyval == Gdk.KEY_BackSpace:
             self.practice.backspace()
             return True
+        if keyval == Gdk.KEY_Delete:
+            self.practice.clear_typed()
+            return True
         if keyval == Gdk.KEY_space:
             self.practice.commit_short()
             return True
-        lowered = Gdk.keyval_to_lower(keyval)
         if Gdk.KEY_a <= lowered <= Gdk.KEY_y:
             self.practice.type(chr(lowered))
             return True

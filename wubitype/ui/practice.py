@@ -236,6 +236,15 @@ class PracticeView(Gtk.Box):
     def set_hint(self, hint: str) -> None:
         self.hint = hint
         if self._active and self.session is not None:
+            if not self.session.is_paused:
+                labels = {
+                    "full": "完整编码",
+                    "next": "逐码提示",
+                    "none": "关闭提示",
+                }
+                self._set_feedback(
+                    f"编码提示：{labels.get(hint, hint)}", ""
+                )
             self._refresh()
 
     def start(
@@ -284,6 +293,8 @@ class PracticeView(Gtk.Box):
     def type(self, letter: str) -> None:
         if not self._active or self.session is None:
             return
+        if self.session.is_paused:
+            return
         session = self.session
         result = session.press(letter)
         if result is PressResult.IGNORED:
@@ -309,12 +320,39 @@ class PracticeView(Gtk.Box):
     def backspace(self) -> None:
         if not self._active or self.session is None:
             return
+        if self.session.is_paused:
+            return
         if self.session.backspace():
             self._set_feedback("已退格", "")
             self._refresh()
 
+    def clear_typed(self) -> None:
+        if not self._active or self.session is None:
+            return
+        if self.session.is_paused:
+            return
+        if self.session.clear_typed():
+            self._set_feedback("已清空当前输入", "")
+            self._refresh()
+
+    def toggle_pause(self) -> None:
+        if not self._active or self.session is None:
+            return
+        if self.session.is_paused:
+            self.session.resume()
+            self._set_feedback("已继续", "ok")
+        elif self.session.start_time is None:
+            self._set_feedback("开始输入后才能暂停", "")
+        else:
+            self.session.pause()
+            if self.session.is_paused:
+                self._set_feedback("已暂停 · Ctrl+P 继续", "warn")
+        self._update_stats()
+
     def commit_short(self) -> None:
         if not self._active or self.session is None:
+            return
+        if self.session.is_paused:
             return
         result = self.session.commit_short()
         if result is PressResult.IGNORED:
@@ -329,6 +367,8 @@ class PracticeView(Gtk.Box):
 
     def skip(self) -> None:
         if not self._active or self.session is None:
+            return
+        if self.session.is_paused:
             return
         current = self.session.current
         if current is None:

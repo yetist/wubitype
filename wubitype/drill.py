@@ -255,6 +255,12 @@ class Session:
         self.typed.pop()
         return True
 
+    def clear_typed(self) -> bool:
+        if self.is_finished or not self.typed:
+            return False
+        self.typed.clear()
+        return True
+
     def can_commit_short(self) -> bool:
         """当前输入是否已构成一个可用的简码，可按空格提交。"""
         if self.is_finished or self.current is None or not self.typed:
