@@ -158,11 +158,7 @@ class SummaryView(Gtk.ScrolledWindow):
         self.details["streak"].set_label(str(session.best_streak))
         self.details["chars"].set_label(str(session.chars_completed))
         self._fill_mistakes(session)
-        target = (
-            self.retry_button
-            if self.retry_button.get_sensitive()
-            else self.again_button
-        )
+        target = self.again_button
         self._focus_token += 1
         token = self._focus_token
 
