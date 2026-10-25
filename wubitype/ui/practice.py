@@ -201,8 +201,9 @@ class PracticeView(Gtk.Box):
 
         # 底部操作
         footer = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=8)
-        restart = Gtk.Button(label="重新开始")
+        restart = Gtk.Button(label="重新开始（Ctrl+R）")
         restart.add_css_class("flat")
+        restart.set_tooltip_text("快捷键：Ctrl+R")
         restart.connect("clicked", lambda _b: self.on_restart())
         skip = Gtk.Button(label="跳过（Tab）")
         skip.add_css_class("flat")

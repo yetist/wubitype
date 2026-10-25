@@ -462,6 +462,12 @@ class MainWindow(Gtk.ApplicationWindow):
             return False
         if self.stack.get_visible_child_name() != "practice":
             return False
+        if (
+            state & Gdk.ModifierType.CONTROL_MASK
+            and Gdk.keyval_to_lower(keyval) == Gdk.KEY_r
+        ):
+            self._restart()
+            return True
         if state & (
             Gdk.ModifierType.CONTROL_MASK
             | Gdk.ModifierType.ALT_MASK

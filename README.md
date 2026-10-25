@@ -94,6 +94,9 @@ wubitype
 | `Esc` | 结束本组并查看成绩；结算页返回首页 |
 | `R` | 结算页重练错题 |
 | `Enter` | 结算页再来一组 |
+| `Ctrl+R` | 打字界面重新开始 |
+
+> `R` 本身是五笔编码键（32 R），为避免影响正常输入，重新开始使用 `Ctrl+R`。
 
 设置和最佳成绩保存在 `~/.config/wubitype/config.json`（遵循 `XDG_CONFIG_HOME`）。
 
