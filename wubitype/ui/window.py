@@ -449,6 +449,11 @@ class MainWindow(Gtk.ApplicationWindow):
         _keycode: int,
         state: Gdk.ModifierType,
     ) -> bool:
+        if self.stack.get_visible_child_name() == "summary":
+            if keyval == Gdk.KEY_Escape:
+                self._go_home()
+                return True
+            return False
         if self.stack.get_visible_child_name() != "practice":
             return False
         if state & (

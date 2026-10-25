@@ -6,7 +6,7 @@ import gi
 
 gi.require_version("Gtk", "4.0")
 
-from gi.repository import Gtk  # noqa: E402
+from gi.repository import GLib, Gtk  # noqa: E402
 
 from ..drill import Session  # noqa: E402
 from .widgets import card, label  # noqa: E402
@@ -112,9 +112,10 @@ class SummaryView(Gtk.ScrolledWindow):
         self.retry_button.add_css_class("start-button")
         self.retry_button.set_hexpand(True)
         self.retry_button.connect("clicked", lambda _b: self.on_retry())
-        home_button = Gtk.Button(label="返回首页")
+        home_button = Gtk.Button(label="返回首页（Esc）")
         home_button.add_css_class("start-button")
         home_button.set_hexpand(True)
+        home_button.set_tooltip_text("快捷键：Esc")
         home_button.connect("clicked", lambda _b: self.on_home())
         buttons.append(self.again_button)
         buttons.append(self.retry_button)
@@ -122,6 +123,7 @@ class SummaryView(Gtk.ScrolledWindow):
         outer.append(buttons)
 
         self.session: Session | None = None
+        self._focus_token = 0
 
     @staticmethod
     def _hero(unit: str, caption: str) -> tuple[Gtk.Box, Gtk.Label]:
@@ -155,6 +157,20 @@ class SummaryView(Gtk.ScrolledWindow):
         self.details["streak"].set_label(str(session.best_streak))
         self.details["chars"].set_label(str(session.chars_completed))
         self._fill_mistakes(session)
+        target = (
+            self.retry_button
+            if self.retry_button.get_sensitive()
+            else self.again_button
+        )
+        self._focus_token += 1
+        token = self._focus_token
+
+        def focus_default() -> bool:
+            if token == self._focus_token and self.get_mapped():
+                target.grab_focus()
+            return False
+
+        GLib.idle_add(focus_default)
 
     def _fill_mistakes(self, session: Session) -> None:
         while (child := self.mistake_area.get_first_child()) is not None:
