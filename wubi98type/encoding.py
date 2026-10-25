@@ -99,16 +99,31 @@ class WordIndex:
         extended: bool = False,
     ) -> None:
         data_dir = Path(data_dir) if data_dir else default_data_dir()
+        main_file = data_dir / DATA_FILES["main"]
         char_file = data_dir / (
-            DATA_FILES["chars_extended"] if extended else DATA_FILES["chars"]
+            DATA_FILES["extended"] if extended else DATA_FILES["main"]
         )
         if not char_file.is_file():
-            char_file = data_dir / DATA_FILES["chars"]
-        phrase_file = data_dir / DATA_FILES["phrases"]
+            char_file = main_file
 
         words: dict[str, WordEntry] = {}
-        self._add_file(words, char_file, extended, single=True)
-        self._add_file(words, phrase_file, extended, single=False)
+        if char_file == main_file:
+            table = self._load_table(main_file)
+            self._add_table(words, table, extended, single=True)
+            self._add_table(words, table, extended, single=False)
+        else:
+            self._add_table(
+                words,
+                self._load_table(char_file),
+                extended,
+                single=True,
+            )
+            self._add_table(
+                words,
+                self._load_table(main_file),
+                extended,
+                single=False,
+            )
         self._words = words
         self._max_word_len = max((len(word) for word in words), default=1)
         self.data_dir = data_dir
@@ -130,17 +145,20 @@ class WordIndex:
         return cached
 
     @staticmethod
-    def _add_file(
+    def _load_table(path: Path) -> dict[str, list[str]]:
+        try:
+            return parse_table(path)
+        except OSError:
+            return {}
+
+    @staticmethod
+    def _add_table(
         words: dict[str, WordEntry],
-        path: Path,
+        table: dict[str, list[str]],
         extended: bool,
         *,
         single: bool,
     ) -> None:
-        try:
-            table = parse_table(path)
-        except OSError:
-            return
         for word, codes in table.items():
             if single:
                 if len(word) != 1 or not is_hanzi(word, extended):

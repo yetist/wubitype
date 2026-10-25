@@ -31,9 +31,8 @@ FIRST_LEVEL_CHARS = "一地在要工上是中国同和的有人我主产不为�
 KEY_NAME_CHARS = "王土大木工目日口田山禾白月人金言立水火之已子女又"
 
 DATA_FILES = {
-    "chars": "wubi98.single.txt",
-    "chars_extended": "wubi98.large.txt",
-    "phrases": "wubi98.main.txt",
+    "main": "wubi98.main.txt",
+    "extended": "wubi98.large.txt",
 }
 
 CHAR_SCOPES: tuple[tuple[str, str], ...] = (
@@ -97,10 +96,10 @@ def default_data_dir() -> Path:
     candidates.append(package_dir)
     candidates.append(Path.home() / ".local/share/wubi98type")
     for path in candidates:
-        if (path / DATA_FILES["chars"]).is_file():
+        if (path / DATA_FILES["main"]).is_file():
             return path
     raise FileNotFoundError(
-        "找不到词库文件 wubi98.single.txt。请把词库放在当前目录，"
+        "找不到词库文件 wubi98.main.txt。请把词库放在当前目录，"
         "或设置环境变量 WUBI98TYPE_DATA 指向词库目录。"
     )
 
@@ -200,18 +199,23 @@ class Dictionary:
             return cached
 
         char_file = data_dir / (
-            DATA_FILES["chars_extended"] if extended else DATA_FILES["chars"]
+            DATA_FILES["extended"] if extended else DATA_FILES["main"]
         )
         if not char_file.is_file():
-            char_file = data_dir / DATA_FILES["chars"]
-        phrase_file = data_dir / DATA_FILES["phrases"]
+            char_file = data_dir / DATA_FILES["main"]
+        phrase_file = data_dir / DATA_FILES["main"]
 
-        chars = _make_entries(
-            _load_table(char_file), extended=extended, single=True
-        )
-        phrases = _make_entries(
-            _load_table(phrase_file), extended=extended, single=False
-        )
+        if char_file == phrase_file:
+            table = _load_table(char_file)
+            chars = _make_entries(table, extended=extended, single=True)
+            phrases = _make_entries(table, extended=extended, single=False)
+        else:
+            chars = _make_entries(
+                _load_table(char_file), extended=extended, single=True
+            )
+            phrases = _make_entries(
+                _load_table(phrase_file), extended=extended, single=False
+            )
         dictionary = cls(chars, phrases, data_dir=data_dir, extended=extended)
         cls._cache[key] = dictionary
         return dictionary

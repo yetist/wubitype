@@ -46,7 +46,7 @@ wubi98type
 3. 仓库/安装包所在目录；
 4. `~/.local/share/wubi98type/`。
 
-只要目录中有 `wubi98.single.txt` 即可。扩展字库需要 `wubi98.large.txt`，词组需要 `wubi98.main.txt`。当前键位图形默认从同目录的 `wubi98-table.png` 裁剪，也可用 `WUBI98TYPE_TABLE` 直接指定图片路径。
+只要目录中有 `wubi98.main.txt` 即可，它同时包含单字和词组编码。扩展字库需要 `wubi98.large.txt`。当前键位图形默认从同目录的 `wubi98-table.png` 裁剪，也可用 `WUBI98TYPE_TABLE` 直接指定图片路径。
 
 ## 使用
 
@@ -88,7 +88,7 @@ wubi98type
 
 ## 分级说明
 
-当前标准码表（`wubi98.single.txt` + `wubi98.main.txt`）包含：
+当前标准码表（`wubi98.main.txt`，单字与词组）包含：
 
 | 范围 | 数量 |
 | --- | ---: |
