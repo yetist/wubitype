@@ -59,10 +59,15 @@ class Entry:
     text: str
     code: str
     min_code_len: int = 4
+    codes: tuple[str, ...] = ()
 
     @property
     def length(self) -> int:
         return len(self.code)
+
+    @property
+    def short_codes(self) -> tuple[str, ...]:
+        return tuple(code for code in self.codes if len(code) < len(self.code))
 
 
 def is_hanzi(char: str, extended: bool = False) -> bool:
@@ -146,7 +151,14 @@ def _make_entries(
         if not single and len(code) != 4:
             # 词组练习只取标准四码词组
             continue
-        entries.append(Entry(word, code, min(len(c) for c in codes)))
+        entries.append(
+            Entry(
+                word,
+                code,
+                min(len(c) for c in codes),
+                tuple(sorted(set(codes), key=lambda c: (len(c), c))),
+            )
+        )
     entries.sort(key=lambda e: (e.min_code_len, e.code, e.text))
     return entries
 

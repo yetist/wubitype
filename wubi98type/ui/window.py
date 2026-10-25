@@ -377,6 +377,9 @@ class MainWindow(Gtk.ApplicationWindow):
         if keyval == Gdk.KEY_BackSpace:
             self.practice.backspace()
             return True
+        if keyval == Gdk.KEY_space:
+            self.practice.commit_short()
+            return True
         lowered = Gdk.keyval_to_lower(keyval)
         if Gdk.KEY_a <= lowered <= Gdk.KEY_y:
             self.practice.type(chr(lowered))

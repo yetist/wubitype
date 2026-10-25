@@ -24,6 +24,7 @@ class Mistake:
     code: str
     errors: int
     skipped: bool = False
+    codes: tuple[str, ...] = ()
 
 
 class _Bucket:
@@ -254,6 +255,21 @@ class Session:
         self.typed.pop()
         return True
 
+    def can_commit_short(self) -> bool:
+        """当前输入是否已构成一个可用的简码，可按空格提交。"""
+        if self.is_finished or self.current is None or not self.typed:
+            return False
+        typed = "".join(self.typed)
+        if len(typed) >= len(self.current.code):
+            return False
+        return typed in self.current.codes
+
+    def commit_short(self) -> PressResult:
+        if not self.can_commit_short():
+            return PressResult.IGNORED
+        self._ensure_started()
+        return self._complete_current()
+
     def skip(self) -> PressResult:
         if self.is_finished:
             return PressResult.IGNORED
@@ -269,6 +285,7 @@ class Session:
                     code=self.current.code,
                     errors=self._item_errors,
                     skipped=skipped,
+                    codes=self.current.codes,
                 )
             )
         if not skipped:
@@ -292,7 +309,7 @@ class Session:
             if key in seen:
                 continue
             seen.add(key)
-            items.append(Entry(mistake.text, mistake.code))
+            items.append(Entry(mistake.text, mistake.code, codes=mistake.codes))
         return items
 
     def summary(self) -> dict[str, object]:

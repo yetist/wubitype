@@ -179,7 +179,7 @@ class HomeView(Gtk.ScrolledWindow):
         outer.append(mnemonic_card)
 
         tips = label(
-            "快捷键：Tab 跳过 · Backspace 退格 · Esc 结束本组",
+            "快捷键：Tab 跳过 · Backspace 退格 · 空格 提交简码 · Esc 结束本组",
             "hint",
         )
         tips.set_xalign(0.5)

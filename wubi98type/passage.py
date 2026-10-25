@@ -69,7 +69,8 @@ def build_passage(
     text = normalise_text(text).strip("\n")
     segments = index.segment(text)
     items = tuple(
-        Entry(segment.text, segment.code) for segment in segments
+        Entry(segment.text, segment.code, codes=(segment.code,))
+        for segment in segments
     )
     positions = tuple(segment.start for segment in segments)
     if not items:

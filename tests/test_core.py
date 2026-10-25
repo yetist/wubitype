@@ -55,6 +55,14 @@ class DataTest(unittest.TestCase):
         self.assertEqual(canonical_code(["a", "aaa", "aaaa"]), "aaaa")
         self.assertEqual(canonical_code(["aad", "aadk"]), "aadk")
 
+    def test_entries_keep_all_code_variants(self) -> None:
+        entry = self.dictionary._char_index["的"]
+        self.assertEqual(entry.code, "rqyy")
+        self.assertIn("r", entry.codes)
+        self.assertIn("rqyy", entry.codes)
+        self.assertEqual(entry.min_code_len, 1)
+        self.assertEqual(entry.short_codes, ("r", "rqy"))
+
     def test_parse_table_ignores_header(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             path = Path(tmp) / "table.txt"
@@ -422,6 +430,38 @@ class SessionTest(unittest.TestCase):
         self.assertFalse(session.is_paused)
         clock[0] = 160.0
         self.assertAlmostEqual(session.elapsed, 20.0)
+
+    def test_space_commits_short_code(self) -> None:
+        entry = Entry("的", "rqyy", 1, ("r", "rqyy"))
+        session = Session([([entry], 1.0)], 1)
+        self.assertIs(session.press("r"), PressResult.CORRECT)
+        self.assertTrue(session.can_commit_short())
+        self.assertIs(session.commit_short(), PressResult.SESSION_DONE)
+        self.assertTrue(session.is_finished)
+        self.assertEqual(session.chars_completed, 1)
+        self.assertEqual(session.keystrokes, 1)
+        self.assertEqual(session.accuracy, 100.0)
+
+    def test_space_needs_a_complete_valid_short_code(self) -> None:
+        entry = Entry("的", "rqyy", 1, ("r", "rqyy"))
+        session = Session([([entry], 1.0)], 1)
+        self.assertIs(session.commit_short(), PressResult.IGNORED)
+        session.press("r")
+        session.press("q")
+        self.assertFalse(session.can_commit_short())
+        self.assertIs(session.commit_short(), PressResult.IGNORED)
+        self.assertFalse(session.is_finished)
+        self.assertEqual(session.typed, ["r", "q"])
+
+    def test_space_retry_keeps_short_codes(self) -> None:
+        entry = Entry("的", "rqyy", 1, ("r", "rqyy"))
+        session = Session([([entry], 1.0)], 1)
+        session.press("x")
+        session.press("r")
+        self.assertIs(session.commit_short(), PressResult.SESSION_DONE)
+        self.assertEqual(len(session.mistakes), 1)
+        retry = session.retry_items()
+        self.assertIn("r", retry[0].codes)
 
     def test_empty_bucket_rejected(self) -> None:
         with self.assertRaises(ValueError):

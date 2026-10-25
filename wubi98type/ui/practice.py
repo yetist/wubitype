@@ -207,6 +207,9 @@ class PracticeView(Gtk.Box):
         abort.add_css_class("flat")
         abort.connect("clicked", lambda _b: self.on_abort())
         footer.append(restart)
+        self.short_hint = label("空格 提交简码", "hint")
+        self.short_hint.set_valign(Gtk.Align.CENTER)
+        footer.append(self.short_hint)
         spacer = Gtk.Box()
         spacer.set_hexpand(True)
         footer.append(spacer)
@@ -235,10 +238,12 @@ class PracticeView(Gtk.Box):
             self._prepare_passage(passage)
             self.char_holder.set_visible(False)
             self.passage_scroller.set_visible(True)
+            self.short_hint.set_visible(False)
         else:
             self.char_holder.set_visible(True)
             self.passage_scroller.set_visible(False)
             self.segment_label.set_visible(False)
+            self.short_hint.set_visible(True)
             self.char_label.set_label("")
         self._refresh()
         self._timer_id = GLib.timeout_add(200, self._tick)
@@ -269,7 +274,10 @@ class PracticeView(Gtk.Box):
         else:
             self.keyboard.flash(letter, True)
             if result is PressResult.CORRECT:
-                self._set_feedback(f"✓ 连击 {session.streak}", "ok")
+                feedback = f"✓ 连击 {session.streak}"
+                if session.can_commit_short():
+                    feedback += " · 空格提交简码"
+                self._set_feedback(feedback, "ok")
             elif result is PressResult.ITEM_DONE:
                 self._set_feedback("✓ 完成", "ok")
             elif result is PressResult.SESSION_DONE:
@@ -284,6 +292,20 @@ class PracticeView(Gtk.Box):
         if self.session.backspace():
             self._set_feedback("已退格", "")
             self._refresh()
+
+    def commit_short(self) -> None:
+        if not self._active or self.session is None:
+            return
+        result = self.session.commit_short()
+        if result is PressResult.IGNORED:
+            return
+        if result is PressResult.SESSION_DONE:
+            self.keyboard.set_expected(None)
+            self._set_feedback("✓ 简码提交", "ok")
+            self._schedule_finish()
+        else:
+            self._set_feedback("✓ 简码提交", "ok")
+        self._refresh()
 
     def skip(self) -> None:
         if not self._active or self.session is None:
