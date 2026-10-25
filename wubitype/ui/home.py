@@ -29,10 +29,11 @@ TEXT_SCOPE_OPTIONS: tuple[tuple[str, str], ...] = tuple(
 
 
 class HomeView(Gtk.ScrolledWindow):
-    def __init__(self, config: Config, on_start) -> None:
+    def __init__(self, config: Config, on_start, on_hint_changed=None) -> None:
         super().__init__()
         self.config = config
         self.on_start = on_start
+        self.on_hint_changed = on_hint_changed
         self._updating = False
         self._scope_ids: list[str] = []
         self._scope_options: tuple[tuple[str, str], ...] = CHAR_SCOPES
@@ -261,6 +262,16 @@ class HomeView(Gtk.ScrolledWindow):
         if self._updating:
             return
         self.config.hint = HINT_IDS[drop.get_selected()]
+        if self.on_hint_changed is not None:
+            self.on_hint_changed()
+
+    def set_hint(self, hint: str) -> None:
+        if hint not in HINT_IDS:
+            return
+        self._updating = True
+        self.hint_dd.set_selected(HINT_IDS.index(hint))
+        self._updating = False
+        self.config.hint = hint
 
     def _on_extended_changed(self, switch: Gtk.Switch, _pspec) -> None:
         if not self._updating:

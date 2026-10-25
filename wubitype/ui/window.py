@@ -12,7 +12,7 @@ gi.require_version("Gdk", "4.0")
 from gi.repository import Gdk, Gio, GLib, Gtk  # noqa: E402
 
 from .. import __version__  # noqa: E402
-from ..config import Config, save_config  # noqa: E402
+from ..config import Config, HINTS, save_config  # noqa: E402
 from ..data import (  # noqa: E402
     CHAR_SCOPES,
     PHRASE_SCOPES,
@@ -53,6 +53,20 @@ class MainWindow(Gtk.ApplicationWindow):
 
         menu = Gio.Menu()
         menu.append("编码查询", "win.lookup")
+
+        hint_menu = Gio.Menu()
+        for hint_label, hint in (
+            ("完整编码", "full"),
+            ("逐码提示", "next"),
+            ("关闭提示", "none"),
+        ):
+            item = Gio.MenuItem.new(hint_label, None)
+            item.set_action_and_target_value(
+                "win.hint", GLib.Variant.new_string(hint)
+            )
+            hint_menu.append_item(item)
+        menu.append_submenu("编码提示", hint_menu)
+
         menu.append("查看键位图", "win.keymap")
         menu.append("清空最佳成绩", "win.clear-records")
         menu.append("关于", "win.about")
@@ -74,7 +88,11 @@ class MainWindow(Gtk.ApplicationWindow):
         )
         self.set_child(self.stack)
 
-        self.home = HomeView(self.config, self._start_from_home)
+        self.home = HomeView(
+            self.config,
+            self._start_from_home,
+            self._sync_hint_action,
+        )
         self.practice = PracticeView(
             on_finish=self._finish_session,
             on_restart=self._restart,
@@ -106,6 +124,14 @@ class MainWindow(Gtk.ApplicationWindow):
 
     # -- 动作与菜单 ---------------------------------------------------
     def _install_actions(self) -> None:
+        self.hint_action = Gio.SimpleAction.new_stateful(
+            "hint",
+            GLib.VariantType.new("s"),
+            GLib.Variant.new_string(self.config.hint),
+        )
+        self.hint_action.connect("change-state", self._on_hint_action)
+        self.add_action(self.hint_action)
+
         actions = (
             ("about", self._show_about),
             ("lookup", self._show_lookup),
@@ -116,6 +142,30 @@ class MainWindow(Gtk.ApplicationWindow):
             action = Gio.SimpleAction.new(name, None)
             action.connect("activate", lambda _action, _param, fn=handler: fn())
             self.add_action(action)
+
+    def _on_hint_action(
+        self, action: Gio.SimpleAction, value: GLib.Variant
+    ) -> None:
+        hint = value.get_string()
+        if hint not in HINTS:
+            return
+        action.set_state(value)
+        self._set_hint(hint)
+
+    def _set_hint(self, hint: str) -> None:
+        if hint not in HINTS:
+            return
+        self.config.hint = hint
+        self.home.set_hint(hint)
+        self.practice.set_hint(hint)
+        self._sync_hint_action()
+
+    def _sync_hint_action(self) -> None:
+        state = self.hint_action.get_state()
+        if state is None or state.get_string() != self.config.hint:
+            self.hint_action.set_state(
+                GLib.Variant.new_string(self.config.hint)
+            )
 
     def _show_about(self) -> None:
         dialog = Gtk.AboutDialog(transient_for=self, modal=True)

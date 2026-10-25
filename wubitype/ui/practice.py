@@ -232,6 +232,11 @@ class PracticeView(Gtk.Box):
         self.keyboard.set_keymap(scheme.keymap, scheme.z_label)
         self.key_images = KeyTableImages(version=scheme.id)
 
+    def set_hint(self, hint: str) -> None:
+        self.hint = hint
+        if self._active and self.session is not None:
+            self._refresh()
+
     def start(
         self,
         session: Session,
