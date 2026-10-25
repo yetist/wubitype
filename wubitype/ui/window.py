@@ -453,6 +453,9 @@ class MainWindow(Gtk.ApplicationWindow):
             if keyval == Gdk.KEY_Escape:
                 self._go_home()
                 return True
+            if keyval in (Gdk.KEY_Return, Gdk.KEY_KP_Enter):
+                self.summary.again()
+                return True
             if Gdk.keyval_to_lower(keyval) == Gdk.KEY_r:
                 self.summary.retry_mistakes()
                 return True

@@ -162,6 +162,9 @@ class SummaryView(Gtk.ScrolledWindow):
         if self.retry_button.get_sensitive():
             self.on_retry()
 
+    def again(self) -> None:
+        self.on_again()
+
     def _fill_mistakes(self, session: Session) -> None:
         while (child := self.mistake_area.get_first_child()) is not None:
             self.mistake_area.remove(child)
