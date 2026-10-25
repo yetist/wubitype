@@ -74,6 +74,21 @@ class _Source:
         return self._buckets[-1][0].take()
 
 
+class _SequenceSource:
+    """按固定顺序出题，用于文稿跟打。"""
+
+    def __init__(self, entries: list[Entry]) -> None:
+        self._entries = list(entries)
+        self._index = 0
+
+    def next(self) -> Entry:
+        if self._index >= len(self._entries):
+            raise StopIteration("题目已取完")
+        entry = self._entries[self._index]
+        self._index += 1
+        return entry
+
+
 class Session:
     """一组练习的完整状态机。
 
@@ -85,15 +100,24 @@ class Session:
 
     def __init__(
         self,
-        buckets: list[tuple[list[Entry], float]],
-        total: int,
+        buckets: list[tuple[list[Entry], float]] | None = None,
+        total: int | None = None,
         *,
+        source: _Source | _SequenceSource | None = None,
         rng: random.Random | None = None,
         now=time.monotonic,
     ) -> None:
         self._rng = rng or random.Random()
         self._now = now
-        self._source = _Source(buckets, self._rng)
+        if source is None:
+            if not buckets:
+                raise ValueError("题目池为空，请换一个练习范围")
+            source = _Source(buckets, self._rng)
+            if total is None:
+                total = len(buckets[0][0])
+        if total is None:
+            raise ValueError("缺少题目数量")
+        self._source = source
         self.total = max(1, int(total))
         self.index = 0
         self.current: Entry | None = self._source.next()
@@ -108,6 +132,24 @@ class Session:
         self.start_time: float | None = None
         self.end_time: float | None = None
         self._item_errors = 0
+
+    @classmethod
+    def sequence(
+        cls,
+        entries,
+        *,
+        rng: random.Random | None = None,
+        now=time.monotonic,
+    ) -> "Session":
+        entries = list(entries)
+        if not entries:
+            raise ValueError("文稿中没有可练习的汉字")
+        return cls(
+            total=len(entries),
+            source=_SequenceSource(entries),
+            rng=rng,
+            now=now,
+        )
 
     # -- 状态查询 -----------------------------------------------------
     @property

@@ -7,7 +7,7 @@ import os
 from dataclasses import asdict, dataclass, field
 from pathlib import Path
 
-MODES = ("char", "phrase", "mixed")
+MODES = ("char", "phrase", "mixed", "text")
 HINTS = ("full", "next", "none")
 CHAR_SCOPE_IDS = ("first", "keyname", "level2", "level3", "full", "all")
 PHRASE_SCOPE_IDS = ("two", "three", "four", "multi", "all")
@@ -24,6 +24,8 @@ class Config:
     mode: str = "char"
     char_scope: str = "level2"
     phrase_scope: str = "two"
+    text_scope: str = "poem-01"
+    text_path: str = ""
     count: int = 20
     hint: str = "next"
     extended: bool = False
@@ -36,6 +38,10 @@ class Config:
             self.char_scope = "level2"
         if self.phrase_scope not in PHRASE_SCOPE_IDS:
             self.phrase_scope = "two"
+        if self.text_scope != "custom" and not self.text_scope.startswith("poem-"):
+            self.text_scope = "poem-01"
+        if not isinstance(self.text_path, str):
+            self.text_path = ""
         if self.hint not in HINTS:
             self.hint = "next"
         self.count = max(1, min(500, int(self.count)))

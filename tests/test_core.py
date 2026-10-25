@@ -10,11 +10,14 @@ from wubi98type.data import (
     Dictionary,
     Entry,
     canonical_code,
+    is_hanzi,
     parse_table,
 )
 from wubi98type.drill import PressResult, Session
 from wubi98type.keymap import KEYMAP, MNEMONICS
 from wubi98type.keytable import KEY_BOXES, TABLE_SIZE, KeyTableImages, find_table_image
+from wubi98type.passage import build_passage, read_text_file
+from wubi98type.poems import POEMS, POEM_BY_ID
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -122,6 +125,71 @@ class KeyTableTest(unittest.TestCase):
         self.assertEqual((preview.get_width(), preview.get_height()), (132, 162))
 
 
+class PoemTest(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls) -> None:
+        cls.dictionary = Dictionary.load(ROOT)
+
+    def test_poem_collection(self) -> None:
+        self.assertEqual(len(POEMS), 80)
+        self.assertEqual(len(POEM_BY_ID), 80)
+        self.assertEqual([poem.number for poem in POEMS], list(range(1, 81)))
+        for poem in POEMS:
+            self.assertTrue(poem.title)
+            self.assertTrue(poem.author)
+            self.assertTrue(poem.lines)
+            self.assertTrue(poem.text)
+
+    def test_all_poem_characters_have_codes(self) -> None:
+        for poem in POEMS:
+            passage = build_passage(poem.text, poem.title, self.dictionary)
+            hanzi_count = sum(1 for char in poem.text if is_hanzi(char))
+            self.assertEqual(passage.char_count, hanzi_count, poem.title)
+            for position, item in zip(passage.positions, passage.items):
+                self.assertEqual(poem.text[position], item.text)
+
+    def test_duplicate_titles_are_disambiguated(self) -> None:
+        labels = [poem.label for poem in POEMS]
+        self.assertEqual(len(labels), len(set(labels)))
+        self.assertIn("绝句", "".join(labels))
+        self.assertTrue(any("悯农（其一）" in label for label in labels))
+        self.assertTrue(any("悯农（其二）" in label for label in labels))
+
+    def test_build_passage_skips_punctuation(self) -> None:
+        text = "床前明月光，\n疑是地上霜。"
+        passage = build_passage(text, "静夜思", self.dictionary)
+        self.assertEqual(passage.char_count, 10)
+        self.assertEqual("".join(item.text for item in passage.items), "床前明月光疑是地上霜")
+        self.assertEqual(text[passage.positions[0]], "床")
+        self.assertEqual(text[passage.positions[-1]], "霜")
+
+    def test_sequence_session_keeps_order(self) -> None:
+        items = [Entry("床", "ysi"), Entry("前", "uej")]
+        session = Session.sequence(items)
+        self.assertEqual(session.total, 2)
+        self.assertEqual(session.current.text, "床")
+        for letter in session.current.code:
+            result = session.press(letter)
+        self.assertIs(result, PressResult.ITEM_DONE)
+        self.assertEqual(session.current.text, "前")
+
+    def test_read_text_file_encodings(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            utf8 = Path(tmp) / "utf8.txt"
+            utf8.write_text("床前明月光\r\n疑是地上霜", encoding="utf-8")
+            self.assertEqual(read_text_file(utf8), "床前明月光\n疑是地上霜")
+            gbk = Path(tmp) / "gbk.txt"
+            gbk.write_bytes("床前明月光".encode("gb18030"))
+            self.assertEqual(read_text_file(gbk), "床前明月光")
+            utf16 = Path(tmp) / "utf16.txt"
+            utf16.write_bytes("床前明月光".encode("utf-16"))
+            self.assertEqual(read_text_file(utf16), "床前明月光")
+
+    def test_build_empty_passage_rejected(self) -> None:
+        with self.assertRaises(ValueError):
+            build_passage("，。！", "空文稿", self.dictionary)
+
+
 class SessionTest(unittest.TestCase):
     def test_wrong_key_does_not_advance(self) -> None:
         session = Session([([Entry("工", "aaaa")], 1.0)], 1)
@@ -227,6 +295,13 @@ class ConfigTest(unittest.TestCase):
         self.assertTrue(
             config.record("char", speed=90, accuracy=97, chars=20)
         )
+
+    def test_text_scope_normalised(self) -> None:
+        config = Config(text_scope="bogus").normalise()
+        self.assertEqual(config.text_scope, "poem-01")
+        config = Config(text_scope="custom", text_path=123).normalise()
+        self.assertEqual(config.text_scope, "custom")
+        self.assertEqual(config.text_path, "")
 
 
 if __name__ == "__main__":

@@ -2,21 +2,29 @@
 
 from __future__ import annotations
 
+from pathlib import Path
+
 import gi
 
 gi.require_version("Gtk", "4.0")
 
-from gi.repository import Gtk  # noqa: E402
+from gi.repository import Gio, GLib, Gtk  # noqa: E402
 
 from ..config import Config  # noqa: E402
-from ..data import CHAR_SCOPES, PHRASE_SCOPES  # noqa: E402
+from ..data import CHAR_SCOPES, PHRASE_SCOPES, is_hanzi  # noqa: E402
 from ..keymap import MNEMONICS, MNEMONIC_ROWS  # noqa: E402
+from ..passage import read_text_file  # noqa: E402
+from ..poems import POEMS  # noqa: E402
 from .widgets import card, dropdown, label  # noqa: E402
 
-MODE_LABELS = ("单字练习", "词组练习", "混合练习")
-MODE_IDS = ("char", "phrase", "mixed")
+MODE_LABELS = ("单字练习", "词组练习", "混合练习", "文稿跟打")
+MODE_IDS = ("char", "phrase", "mixed", "text")
 HINT_LABELS = ("显示完整编码", "逐码提示（推荐）", "关闭提示")
 HINT_IDS = ("full", "next", "none")
+TEXT_CUSTOM_ID = "custom"
+TEXT_SCOPE_OPTIONS: tuple[tuple[str, str], ...] = tuple(
+    (poem.label, f"poem-{poem.number:02d}") for poem in POEMS
+) + (("自定义文本文件…", TEXT_CUSTOM_ID),)
 
 
 class HomeView(Gtk.ScrolledWindow):
@@ -27,6 +35,7 @@ class HomeView(Gtk.ScrolledWindow):
         self._updating = False
         self._scope_ids: list[str] = []
         self._scope_options: tuple[tuple[str, str], ...] = CHAR_SCOPES
+        self._file_dialog_open = False
 
         self.set_policy(Gtk.PolicyType.NEVER, Gtk.PolicyType.AUTOMATIC)
         self.set_vexpand(True)
@@ -74,7 +83,20 @@ class HomeView(Gtk.ScrolledWindow):
         self._rebuild_scope()
 
         row += 1
-        grid.attach(self._field_label("每组题数"), 0, row, 1, 1)
+        self.custom_label = self._field_label("自定义文稿")
+        grid.attach(self.custom_label, 0, row, 1, 1)
+        self.custom_box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=10)
+        self.custom_button = Gtk.Button(label="选择文本文件…")
+        self.custom_button.connect("clicked", lambda _button: self._choose_text_file())
+        self.custom_file_label = label("尚未选择文件", "hint")
+        self.custom_file_label.set_hexpand(True)
+        self.custom_box.append(self.custom_button)
+        self.custom_box.append(self.custom_file_label)
+        grid.attach(self.custom_box, 1, row, 1, 1)
+
+        row += 1
+        self.count_label = self._field_label("每组题数")
+        grid.attach(self.count_label, 0, row, 1, 1)
         adjustment = Gtk.Adjustment(
             value=config.count, lower=1, upper=500, step_increment=5, page_increment=25
         )
@@ -111,6 +133,7 @@ class HomeView(Gtk.ScrolledWindow):
         self.start_button.set_halign(Gtk.Align.FILL)
         self.start_button.connect("clicked", lambda _button: self.on_start())
         outer.append(self.start_button)
+        self._update_mode_visibility()
 
         best_card = card(spacing=4)
         best_title = label("最佳记录", "stat-label")
@@ -177,20 +200,27 @@ class HomeView(Gtk.ScrolledWindow):
             return
         self.config.mode = MODE_IDS[drop.get_selected()]
         self._rebuild_scope()
+        self._update_mode_visibility()
         self.refresh_best()
 
     def _rebuild_scope(self) -> None:
         self._updating = True
-        phrase = self.config.mode == "phrase"
-        options = PHRASE_SCOPES if phrase else CHAR_SCOPES
+        mode = self.config.mode
+        if mode == "phrase":
+            options = PHRASE_SCOPES
+            target = self.config.phrase_scope
+        elif mode == "text":
+            options = TEXT_SCOPE_OPTIONS
+            target = self.config.text_scope
+        else:
+            options = CHAR_SCOPES
+            target = self.config.char_scope
         self._scope_options = options
         self._scope_ids = [scope_id for _label, scope_id in options]
         self.scope_dd.set_model(
             Gtk.StringList.new([scope_label for scope_label, _sid in options])
         )
-        target = (
-            self.config.phrase_scope if phrase else self.config.char_scope
-        )
+        self.scope_dd.set_enable_search(mode == "text")
         if target not in self._scope_ids:
             target = self._scope_ids[0]
         self.scope_dd.set_selected(self._scope_ids.index(target))
@@ -205,6 +235,11 @@ class HomeView(Gtk.ScrolledWindow):
         scope_id = self._scope_ids[selected]
         if self.config.mode == "phrase":
             self.config.phrase_scope = scope_id
+        elif self.config.mode == "text":
+            self.config.text_scope = scope_id
+            self._update_custom_row()
+            if scope_id == TEXT_CUSTOM_ID and not self.config.text_path:
+                GLib.idle_add(self._choose_text_file)
         else:
             self.config.char_scope = scope_id
 
@@ -230,11 +265,100 @@ class HomeView(Gtk.ScrolledWindow):
             scope_id = self._scope_ids[selected]
             if self.config.mode == "phrase":
                 self.config.phrase_scope = scope_id
+            elif self.config.mode == "text":
+                self.config.text_scope = scope_id
             else:
                 self.config.char_scope = scope_id
         self.config.count = self.count_spin.get_value_as_int()
         self.config.hint = HINT_IDS[self.hint_dd.get_selected()]
         self.config.extended = self.extended_switch.get_active()
+
+    # -- 文稿跟打 -----------------------------------------------------
+    def _update_mode_visibility(self) -> None:
+        is_text = self.config.mode == "text"
+        self.count_label.set_visible(not is_text)
+        self.count_spin.set_visible(not is_text)
+        self.custom_label.set_visible(is_text)
+        self.custom_box.set_visible(is_text)
+        self.start_button.set_label("开始跟打" if is_text else "开始练习")
+        self._update_custom_row()
+
+    def _update_custom_row(self) -> None:
+        if self.config.text_scope != TEXT_CUSTOM_ID:
+            self.custom_file_label.set_label(
+                "内置《小学生必备古诗 80 首》· 可加载自定义文本"
+            )
+            return
+        path = self.config.text_path
+        if not path or not Path(path).is_file():
+            self.custom_file_label.set_label("尚未选择文件")
+            return
+        name = Path(path).name
+        if len(name) > 30:
+            name = name[:27] + "…"
+        self.custom_file_label.set_label(f"已选择：{name}")
+
+    def _select_scope(self, scope_id: str) -> None:
+        if scope_id not in self._scope_ids:
+            return
+        self._updating = True
+        self.scope_dd.set_selected(self._scope_ids.index(scope_id))
+        self._updating = False
+        self._update_custom_row()
+
+    def _choose_text_file(self) -> bool:
+        if self._file_dialog_open:
+            return False
+        dialog = Gtk.FileDialog(title="选择文稿文件")
+        filters = Gio.ListStore.new(Gtk.FileFilter)
+        text_filter = Gtk.FileFilter()
+        text_filter.set_name("文本文件")
+        for pattern in ("*.txt", "*.md", "*.text"):
+            text_filter.add_pattern(pattern)
+        filters.append(text_filter)
+        dialog.set_filters(filters)
+        dialog.set_default_filter(text_filter)
+        self._file_dialog_open = True
+        root = self.get_root()
+        parent = root if isinstance(root, Gtk.Window) else None
+        dialog.open(parent, None, self._on_text_file_chosen)
+        return False
+
+    def _on_text_file_chosen(self, dialog: Gtk.FileDialog, result) -> None:
+        self._file_dialog_open = False
+        try:
+            file = dialog.open_finish(result)
+        except GLib.Error:
+            return
+        if file is None or file.get_path() is None:
+            return
+        self._apply_text_path(Path(file.get_path()))
+
+    def _apply_text_path(self, path: Path) -> bool:
+        try:
+            text = read_text_file(path)
+        except OSError as error:
+            self._alert("无法读取文件", str(error))
+            return False
+        if not any(is_hanzi(char, self.config.extended) for char in text):
+            self._alert(
+                "文件中没有可练习的汉字",
+                "请选择包含中文的 UTF-8 或 GB18030 文本文件。",
+            )
+            return False
+        self.config.text_path = str(path)
+        self.config.text_scope = TEXT_CUSTOM_ID
+        self._select_scope(TEXT_CUSTOM_ID)
+        return True
+
+    def _alert(self, message: str, detail: str = "") -> None:
+        dialog = Gtk.AlertDialog(message=message, detail=detail)
+        dialog.set_buttons(["知道了"])
+        root = self.get_root()
+        if isinstance(root, Gtk.Window):
+            dialog.show(root)
+        else:
+            dialog.show()
 
     def refresh_best(self) -> None:
         best = self.config.best_for(self.config.mode)

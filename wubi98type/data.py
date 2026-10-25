@@ -203,6 +203,10 @@ class Dictionary:
         return dictionary
 
     # -- 分级 ---------------------------------------------------------
+    def entry_for(self, char: str) -> Entry | None:
+        """按单字取完整编码，供文稿跟打使用。"""
+        return self._char_index.get(char)
+
     def char_scope(self, scope: str) -> list[Entry]:
         if scope == "first":
             return [

@@ -20,6 +20,8 @@ from ..data import (  # noqa: E402
     default_data_dir,
 )
 from ..drill import Session  # noqa: E402
+from ..passage import Passage, build_passage, read_text_file  # noqa: E402
+from ..poems import POEM_BY_ID  # noqa: E402
 from .home import MODE_IDS, MODE_LABELS, HomeView  # noqa: E402
 from .practice import PracticeView  # noqa: E402
 from .summary import SummaryView  # noqa: E402
@@ -201,7 +203,13 @@ class MainWindow(Gtk.ApplicationWindow):
                 buckets = [(list(items), 1.0)]
                 total = len(items)
                 meta = meta or f"错题重练 · {total} 题"
+                passage = None
+            elif self.config.mode == "text":
+                passage = self._build_text_passage()
+                total = passage.char_count
+                meta = f"文稿跟打 · {passage.title} · {total} 字"
             else:
+                passage = None
                 buckets = self.dictionary.buckets(
                     self.config.mode,
                     self.config.char_scope,
@@ -209,12 +217,14 @@ class MainWindow(Gtk.ApplicationWindow):
                 )
                 total = self.config.count
                 meta = meta or self._meta_label(total)
-            session = Session(buckets, total)
-        except ValueError as error:
-            self._alert("没有可练习的题目", str(error))
+            if passage is not None:
+                session = Session.sequence(passage.items)
+            else:
+                session = Session(buckets, total)
+        except (ValueError, OSError) as error:
+            self._alert("无法开始练习", str(error))
             return
-
-        self.practice.start(session, meta, self.config.hint)
+        self.practice.start(session, meta, self.config.hint, passage=passage)
         self.practice_page.get_vadjustment().set_value(0)
         self.stack.set_visible_child(self.practice_page)
 
@@ -232,6 +242,22 @@ class MainWindow(Gtk.ApplicationWindow):
             "全部",
         )
         return f"{mode_label} · {scope_label} · {total} 题"
+
+    def _build_text_passage(self) -> Passage:
+        assert self.dictionary is not None
+        if self.config.text_scope == "custom":
+            path = Path(self.config.text_path)
+            if not path.is_file():
+                raise ValueError("请先在首页选择自定义文本文件")
+            text = read_text_file(path)
+            title = path.name
+        else:
+            poem = POEM_BY_ID.get(self.config.text_scope)
+            if poem is None:
+                raise ValueError("找不到所选古诗")
+            text = poem.text
+            title = f"《{poem.display_title}》"
+        return build_passage(text, title, self.dictionary)
 
     def _finish_session(self, session: Session, *, aborted: bool = False) -> None:
         record = False

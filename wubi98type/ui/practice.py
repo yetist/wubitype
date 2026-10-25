@@ -5,16 +5,19 @@ from __future__ import annotations
 import gi
 
 gi.require_version("Gtk", "4.0")
+gi.require_version("Pango", "1.0")
 
-from gi.repository import GLib, Gtk  # noqa: E402
+from gi.repository import GLib, Gtk, Pango  # noqa: E402
 
 from ..drill import PressResult, Session  # noqa: E402
 from ..keymap import MNEMONICS  # noqa: E402
 from ..keytable import KeyTableImages  # noqa: E402
+from ..passage import Passage  # noqa: E402
 from .keyboard import KeyboardView  # noqa: E402
 from .widgets import card, label, stat_block  # noqa: E402
 
 KEY_PREVIEW_SIZE = (132, 162)
+PASSAGE_HEIGHT = 150
 
 
 def _clock(seconds: float) -> str:
@@ -39,6 +42,10 @@ class PracticeView(Gtk.Box):
         self._timer_id: int | None = None
         self._finish_token = 0
         self.hint = "next"
+        self.passage: Passage | None = None
+        self._passage_index: int | None = None
+        self._passage_done_upto = 0
+        self._passage_current: tuple[int, int] | None = None
 
         # 统计条
         stats_card = card(spacing=0)
@@ -90,6 +97,36 @@ class PracticeView(Gtk.Box):
         self.char_label.set_vexpand(True)
         holder.append(self.char_label)
         content.append(holder)
+        self.char_holder = holder
+
+        self.passage_view = Gtk.TextView()
+        self.passage_view.add_css_class("passage-view")
+        self.passage_view.set_editable(False)
+        self.passage_view.set_cursor_visible(False)
+        self.passage_view.set_can_focus(False)
+        self.passage_view.set_wrap_mode(Gtk.WrapMode.CHAR)
+        self.passage_view.set_left_margin(10)
+        self.passage_view.set_right_margin(10)
+        self.passage_view.set_top_margin(4)
+        self.passage_view.set_bottom_margin(4)
+        self.passage_buffer = Gtk.TextBuffer()
+        self.passage_buffer.create_tag("base", pixels_below_lines=5)
+        self.passage_buffer.create_tag("done", foreground="#2ec27e")
+        self.passage_buffer.create_tag(
+            "current",
+            background="#3584e4",
+            foreground="#ffffff",
+            weight=Pango.Weight.BOLD,
+        )
+        self.passage_view.set_buffer(self.passage_buffer)
+        self.passage_scroller = Gtk.ScrolledWindow()
+        self.passage_scroller.set_policy(
+            Gtk.PolicyType.NEVER, Gtk.PolicyType.AUTOMATIC
+        )
+        self.passage_scroller.set_size_request(-1, PASSAGE_HEIGHT)
+        self.passage_scroller.set_child(self.passage_view)
+        self.passage_scroller.set_visible(False)
+        content.append(self.passage_scroller)
 
         self.code_row = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=10)
         self.code_row.set_halign(Gtk.Align.CENTER)
@@ -173,15 +210,30 @@ class PracticeView(Gtk.Box):
         self.append(footer)
 
     # -- 生命周期 -----------------------------------------------------
-    def start(self, session: Session, meta: str, hint: str = "next") -> None:
+    def start(
+        self,
+        session: Session,
+        meta: str,
+        hint: str = "next",
+        passage: Passage | None = None,
+    ) -> None:
         self.stop()
         self._finish_token += 1
         self.session = session
         self.hint = hint
+        self.passage = passage
         self._active = True
         self.meta_label.set_label(meta)
         self._set_feedback("开始输入", "")
         self.keyboard.reset()
+        if passage is not None:
+            self._prepare_passage(passage)
+            self.char_holder.set_visible(False)
+            self.passage_scroller.set_visible(True)
+        else:
+            self.char_holder.set_visible(True)
+            self.passage_scroller.set_visible(False)
+            self.char_label.set_label("")
         self._refresh()
         self._timer_id = GLib.timeout_add(200, self._tick)
 
@@ -266,15 +318,21 @@ class PracticeView(Gtk.Box):
             return
         current = session.current
         if current is None:
-            self.char_label.set_label("")
+            if self.passage is None:
+                self.char_label.set_label("")
+            else:
+                self._update_passage(session)
             for box in self.code_boxes:
                 box.set_visible(False)
             self.mnemonic_box.set_visible(False)
             self.key_preview.set_visible(False)
             self.keyboard.set_expected(None)
         else:
-            self.char_label.set_label(current.text)
-            self._apply_size_class(len(current.text))
+            if self.passage is None:
+                self.char_label.set_label(current.text)
+                self._apply_size_class(len(current.text))
+            else:
+                self._update_passage(session)
             self._update_boxes(current.code, session.typed)
             self.keyboard.set_expected(session.expected)
             self._update_mnemonic(session.expected)
@@ -343,6 +401,55 @@ class PracticeView(Gtk.Box):
         self.key_picture.set_paintable(texture)
         self.key_preview_caption.set_label(f"当前键位 · {expected.upper()}")
         self.key_preview.set_visible(True)
+
+    # -- 文稿 ---------------------------------------------------------
+    def _prepare_passage(self, passage: Passage) -> None:
+        self.passage_buffer.set_text(passage.text)
+        start, end = self.passage_buffer.get_bounds()
+        self.passage_buffer.apply_tag_by_name("base", start, end)
+        self._passage_index = None
+        self._passage_done_upto = 0
+        self._passage_current = None
+
+    def _update_passage(self, session: Session) -> None:
+        passage = self.passage
+        if passage is None:
+            return
+        index = min(session.index, len(passage.positions))
+        if index == self._passage_index:
+            return
+        self._passage_index = index
+        buffer = self.passage_buffer
+        if self._passage_current is not None:
+            start, end = self._passage_current
+            buffer.remove_tag_by_name(
+                "current",
+                buffer.get_iter_at_offset(start),
+                buffer.get_iter_at_offset(end),
+            )
+            self._passage_current = None
+        while self._passage_done_upto < index:
+            position = passage.positions[self._passage_done_upto]
+            buffer.apply_tag_by_name(
+                "done",
+                buffer.get_iter_at_offset(position),
+                buffer.get_iter_at_offset(position + 1),
+            )
+            self._passage_done_upto += 1
+        if index < len(passage.positions):
+            position = passage.positions[index]
+            start_iter = buffer.get_iter_at_offset(position)
+            buffer.apply_tag_by_name(
+                "current",
+                start_iter,
+                buffer.get_iter_at_offset(position + 1),
+            )
+            self._passage_current = (position, position + 1)
+            self.passage_view.scroll_to_iter(start_iter, 0.25, False, 0.0, 0.35)
+        else:
+            self.passage_view.scroll_to_iter(
+                buffer.get_end_iter(), 0.25, False, 0.0, 1.0
+            )
 
     def _update_stats(self) -> None:
         session = self.session
