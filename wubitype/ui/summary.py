@@ -108,10 +108,11 @@ class SummaryView(Gtk.ScrolledWindow):
         self.again_button.add_css_class("start-button")
         self.again_button.set_hexpand(True)
         self.again_button.connect("clicked", lambda _b: self.on_again())
-        self.retry_button = Gtk.Button(label="重练错题")
+        self.retry_button = Gtk.Button(label="重练错题（R）")
         self.retry_button.add_css_class("start-button")
         self.retry_button.set_hexpand(True)
-        self.retry_button.connect("clicked", lambda _b: self.on_retry())
+        self.retry_button.set_tooltip_text("快捷键：R")
+        self.retry_button.connect("clicked", lambda _b: self.retry_mistakes())
         home_button = Gtk.Button(label="返回首页（Esc）")
         home_button.add_css_class("start-button")
         home_button.set_hexpand(True)
@@ -171,6 +172,10 @@ class SummaryView(Gtk.ScrolledWindow):
             return False
 
         GLib.idle_add(focus_default)
+
+    def retry_mistakes(self) -> None:
+        if self.retry_button.get_sensitive():
+            self.on_retry()
 
     def _fill_mistakes(self, session: Session) -> None:
         while (child := self.mistake_area.get_first_child()) is not None:
