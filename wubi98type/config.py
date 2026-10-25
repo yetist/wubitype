@@ -21,6 +21,7 @@ def config_path() -> Path:
 
 @dataclass
 class Config:
+    version: str = "98"
     mode: str = "char"
     char_scope: str = "level2"
     phrase_scope: str = "two"
@@ -33,6 +34,8 @@ class Config:
     best: dict[str, dict[str, float]] = field(default_factory=dict)
 
     def normalise(self) -> "Config":
+        if self.version not in ("98", "86"):
+            self.version = "98"
         if self.mode not in MODES:
             self.mode = "char"
         if self.char_scope not in CHAR_SCOPE_IDS:
@@ -55,10 +58,17 @@ class Config:
         self.count = max(1, min(500, int(self.count)))
         if not isinstance(self.best, dict):
             self.best = {}
+        # 兼容旧版按模式保存的成绩：归入 98 版
+        for mode in MODES:
+            if mode in self.best and f"98:{mode}" not in self.best:
+                self.best[f"98:{mode}"] = self.best.pop(mode)
         return self
 
+    def _best_key(self, mode: str) -> str:
+        return f"{self.version}:{mode}"
+
     def best_for(self, mode: str) -> dict[str, float] | None:
-        value = self.best.get(mode)
+        value = self.best.get(self._best_key(mode))
         return value if isinstance(value, dict) else None
 
     def record(self, mode: str, *, speed: float, accuracy: float, chars: int) -> bool:
@@ -69,7 +79,7 @@ class Config:
         score = speed * (accuracy / 100.0)
         if previous is not None and score <= float(previous.get("score", 0.0)):
             return False
-        self.best[mode] = {
+        self.best[self._best_key(mode)] = {
             "speed": round(speed, 1),
             "accuracy": round(accuracy, 1),
             "chars": chars,

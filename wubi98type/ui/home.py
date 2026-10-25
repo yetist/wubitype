@@ -12,13 +12,10 @@ from gi.repository import Gio, GLib, Gtk  # noqa: E402
 
 from ..config import Config  # noqa: E402
 from ..data import CHAR_SCOPES, PHRASE_SCOPES, is_hanzi  # noqa: E402
-from ..keymap import (  # noqa: E402
-    KEY_SCOPE_OPTIONS,
-    MNEMONICS,
-    MNEMONIC_ROWS,
-)
+from ..keymap import MNEMONIC_ROWS  # noqa: E402
 from ..passage import read_text_file  # noqa: E402
 from ..poems import POEMS  # noqa: E402
+from ..schemes import VERSION_IDS, VERSION_LABELS, get_scheme  # noqa: E402
 from .widgets import card, dropdown, label  # noqa: E402
 
 MODE_LABELS = ("单字练习", "词组练习", "混合练习", "键位专项", "文稿跟打")
@@ -40,29 +37,32 @@ class HomeView(Gtk.ScrolledWindow):
         self._scope_ids: list[str] = []
         self._scope_options: tuple[tuple[str, str], ...] = CHAR_SCOPES
         self._file_dialog_open = False
+        self._scheme = get_scheme(config.version)
 
         self.set_policy(Gtk.PolicyType.NEVER, Gtk.PolicyType.AUTOMATIC)
         self.set_vexpand(True)
 
-        outer = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=20)
+        outer = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=14)
         outer.set_halign(Gtk.Align.CENTER)
         outer.set_size_request(760, -1)
-        outer.set_margin_top(34)
-        outer.set_margin_bottom(34)
+        outer.set_margin_top(24)
+        outer.set_margin_bottom(24)
         outer.set_margin_start(28)
         outer.set_margin_end(28)
         self.set_child(outer)
 
         heading = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=6)
-        title = label("五笔 98 打字练习", "title-xl")
-        title.set_xalign(0)
+        self.title_label = label(
+            f"五笔 {config.version} 打字练习", "title-xl"
+        )
+        self.title_label.set_xalign(0)
         subtitle = label(
-            "按 98 版码元规则出题，边打边记键位。选择范围后即可开始。",
+            "支持五笔 98 版 / 86 版码元规则，边打边记键位。选择范围后即可开始。",
             "subtitle",
         )
         subtitle.set_xalign(0)
         subtitle.set_wrap(True)
-        heading.append(title)
+        heading.append(self.title_label)
         heading.append(subtitle)
         outer.append(heading)
 
@@ -72,6 +72,15 @@ class HomeView(Gtk.ScrolledWindow):
         form.append(grid)
 
         row = 0
+        grid.attach(self._field_label("编码版本"), 0, row, 1, 1)
+        self.version_dd = dropdown(
+            list(VERSION_LABELS), VERSION_IDS.index(config.version)
+        )
+        self.version_dd.set_hexpand(True)
+        self.version_dd.connect("notify::selected", self._on_version_changed)
+        grid.attach(self.version_dd, 1, row, 1, 1)
+
+        row += 1
         grid.attach(self._field_label("练习模式"), 0, row, 1, 1)
         self.mode_dd = dropdown(list(MODE_LABELS), MODE_IDS.index(config.mode))
         self.mode_dd.set_hexpand(True)
@@ -144,43 +153,28 @@ class HomeView(Gtk.ScrolledWindow):
         best_title.set_xalign(0)
         self.best_label = label("", "best-value")
         self.best_label.set_xalign(0)
-        self.best_note = label("按练习模式分别保存", "hint")
+        self.best_note = label("按版本和练习模式分别保存", "hint")
         self.best_note.set_xalign(0)
         best_card.append(best_title)
         best_card.append(self.best_label)
         best_card.append(self.best_note)
         outer.append(best_card)
 
-        mnemonic_card = card(spacing=8)
+        self.mnemonic_card = card(spacing=8)
         mnemonic_header = Gtk.Box(
             orientation=Gtk.Orientation.HORIZONTAL, spacing=8
         )
-        mnemonic_title = label("字根助记口诀", "card-title")
-        mnemonic_title.set_xalign(0)
-        mnemonic_title.set_hexpand(True)
-        mnemonic_header.append(mnemonic_title)
+        self.mnemonic_title = label("字根助记口诀", "card-title")
+        self.mnemonic_title.set_xalign(0)
+        self.mnemonic_title.set_hexpand(True)
+        mnemonic_header.append(self.mnemonic_title)
         mnemonic_note = label("按横、竖、撇、捺、折五区排列", "hint")
         mnemonic_header.append(mnemonic_note)
-        mnemonic_card.append(mnemonic_header)
-
-        mnemonic_grid = Gtk.Grid(column_spacing=12, row_spacing=6)
-        for row_index, (zone, letters) in enumerate(MNEMONIC_ROWS):
-            zone_label = label(zone, "zone-label")
-            zone_label.set_xalign(0)
-            zone_label.set_valign(Gtk.Align.CENTER)
-            mnemonic_grid.attach(zone_label, 0, row_index, 1, 1)
-            for column, letter in enumerate(letters):
-                cell = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=4)
-                key_label = label(letter.upper(), "mnemonic-key")
-                key_label.set_valign(Gtk.Align.CENTER)
-                text_label = label(MNEMONICS[letter], "mnemonic-text")
-                text_label.set_xalign(0)
-                text_label.set_valign(Gtk.Align.CENTER)
-                cell.append(key_label)
-                cell.append(text_label)
-                mnemonic_grid.attach(cell, column + 1, row_index, 1, 1)
-        mnemonic_card.append(mnemonic_grid)
-        outer.append(mnemonic_card)
+        self.mnemonic_card.append(mnemonic_header)
+        self.mnemonic_grid = Gtk.Grid(column_spacing=12, row_spacing=4)
+        self.mnemonic_card.append(self.mnemonic_grid)
+        outer.append(self.mnemonic_card)
+        self._rebuild_mnemonic_grid()
 
         tips = label(
             "快捷键：Tab 跳过 · Backspace 退格 · 空格 提交简码 · Esc 结束本组",
@@ -199,6 +193,16 @@ class HomeView(Gtk.ScrolledWindow):
         return widget
 
     # -- 事件 ---------------------------------------------------------
+    def _on_version_changed(self, drop: Gtk.DropDown, _pspec) -> None:
+        if self._updating:
+            return
+        self.config.version = VERSION_IDS[drop.get_selected()]
+        self._scheme = get_scheme(self.config.version)
+        self.title_label.set_label(f"五笔 {self.config.version} 打字练习")
+        self._rebuild_scope()
+        self._rebuild_mnemonic_grid()
+        self.refresh_best()
+
     def _on_mode_changed(self, drop: Gtk.DropDown, _pspec) -> None:
         if self._updating:
             return
@@ -217,7 +221,7 @@ class HomeView(Gtk.ScrolledWindow):
             options = TEXT_SCOPE_OPTIONS
             target = self.config.text_scope
         elif mode == "keys":
-            options = KEY_SCOPE_OPTIONS
+            options = self._scheme.key_scope_options
             target = self.config.key_scope
         else:
             options = CHAR_SCOPES
@@ -268,6 +272,8 @@ class HomeView(Gtk.ScrolledWindow):
     # -- 对外 ---------------------------------------------------------
     def sync_config(self) -> None:
         """从控件读回配置，避免因信号顺序漏掉改动。"""
+        self.config.version = VERSION_IDS[self.version_dd.get_selected()]
+        self._scheme = get_scheme(self.config.version)
         self.config.mode = MODE_IDS[self.mode_dd.get_selected()]
         selected = self.scope_dd.get_selected()
         if 0 <= selected < len(self._scope_ids):
@@ -283,6 +289,35 @@ class HomeView(Gtk.ScrolledWindow):
         self.config.count = self.count_spin.get_value_as_int()
         self.config.hint = HINT_IDS[self.hint_dd.get_selected()]
         self.config.extended = self.extended_switch.get_active()
+
+    # -- 文稿跟打 -----------------------------------------------------
+    def _rebuild_mnemonic_grid(self) -> None:
+        while (child := self.mnemonic_grid.get_first_child()) is not None:
+            self.mnemonic_grid.remove(child)
+        self.mnemonic_title.set_label(
+            f"字根助记口诀 · {self._scheme.label}"
+        )
+        for row_index, (zone, letters) in enumerate(MNEMONIC_ROWS):
+            zone_label = label(zone, "zone-label")
+            zone_label.set_xalign(0)
+            zone_label.set_valign(Gtk.Align.CENTER)
+            self.mnemonic_grid.attach(zone_label, 0, row_index, 1, 1)
+            for column, letter in enumerate(letters):
+                cell = Gtk.Box(
+                    orientation=Gtk.Orientation.HORIZONTAL, spacing=4
+                )
+                key_label = label(letter.upper(), "mnemonic-key")
+                key_label.set_valign(Gtk.Align.CENTER)
+                text_label = label(
+                    self._scheme.mnemonics[letter], "mnemonic-text"
+                )
+                text_label.set_xalign(0)
+                text_label.set_valign(Gtk.Align.CENTER)
+                cell.append(key_label)
+                cell.append(text_label)
+                self.mnemonic_grid.attach(
+                    cell, column + 1, row_index, 1, 1
+                )
 
     # -- 文稿跟打 -----------------------------------------------------
     def _update_mode_visibility(self) -> None:

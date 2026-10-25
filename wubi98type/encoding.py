@@ -5,7 +5,8 @@ from __future__ import annotations
 from dataclasses import dataclass
 from pathlib import Path
 
-from .data import DATA_FILES, default_data_dir, is_hanzi, parse_table
+from .data import default_data_dir, is_hanzi, parse_table
+from .schemes import get_scheme
 
 
 @dataclass(frozen=True, slots=True)
@@ -90,19 +91,23 @@ class EncodeResult:
 class WordIndex:
     """字词索引：保留全部编码，并按最长词组优先切分文本。"""
 
-    _cache: dict[tuple[str, bool], "WordIndex"] = {}
+    _cache: dict[tuple[str, bool, str], "WordIndex"] = {}
 
     def __init__(
         self,
         data_dir: Path | None = None,
         *,
         extended: bool = False,
+        version: str = "98",
     ) -> None:
         data_dir = Path(data_dir) if data_dir else default_data_dir()
-        main_file = data_dir / DATA_FILES["main"]
-        char_file = data_dir / (
-            DATA_FILES["extended"] if extended else DATA_FILES["main"]
-        )
+        scheme = get_scheme(version)
+        main_file = data_dir / scheme.main_file
+        if not main_file.is_file():
+            raise FileNotFoundError(
+                f"找不到 {scheme.main_file}，无法使用{scheme.label}。"
+            )
+        char_file = data_dir / scheme.large_file if extended else main_file
         if not char_file.is_file():
             char_file = main_file
 
@@ -128,6 +133,8 @@ class WordIndex:
         self._max_word_len = max((len(word) for word in words), default=1)
         self.data_dir = data_dir
         self.extended = extended
+        self.version = scheme.id
+        self.scheme = scheme
 
     @classmethod
     def load(
@@ -135,12 +142,14 @@ class WordIndex:
         data_dir: Path | None = None,
         *,
         extended: bool = False,
+        version: str = "98",
     ) -> "WordIndex":
         data_dir = Path(data_dir) if data_dir else default_data_dir()
-        key = (str(data_dir.resolve()), extended)
+        scheme = get_scheme(version)
+        key = (str(data_dir.resolve()), extended, scheme.id)
         cached = cls._cache.get(key)
         if cached is None:
-            cached = cls(data_dir, extended=extended)
+            cached = cls(data_dir, extended=extended, version=version)
             cls._cache[key] = cached
         return cached
 

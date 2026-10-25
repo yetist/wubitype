@@ -11,6 +11,7 @@ from gi.repository import GLib, Gtk, Pango  # noqa: E402
 
 from ..drill import PressResult, Session  # noqa: E402
 from ..keymap import MNEMONICS  # noqa: E402
+from ..schemes import get_scheme  # noqa: E402
 from ..keytable import KeyTableImages  # noqa: E402
 from ..passage import Passage  # noqa: E402
 from .keyboard import KeyboardView  # noqa: E402
@@ -46,6 +47,8 @@ class PracticeView(Gtk.Box):
         self._passage_index: int | None = None
         self._passage_done_upto = 0
         self._passage_current: tuple[int, int] | None = None
+        self.version = "98"
+        self.mnemonics = MNEMONICS
 
         # 统计条
         stats_card = card(spacing=0)
@@ -168,7 +171,7 @@ class PracticeView(Gtk.Box):
         content.append(self.progress_bar)
 
         # 当前键位图形（仅在开启编码提示时显示）
-        self.key_images = KeyTableImages()
+        self.key_images = KeyTableImages(version="98")
         self.key_preview = Gtk.Box(
             orientation=Gtk.Orientation.VERTICAL, spacing=2
         )
@@ -219,6 +222,16 @@ class PracticeView(Gtk.Box):
         self.append(footer)
 
     # -- 生命周期 -----------------------------------------------------
+    def set_version(self, version: str) -> None:
+        scheme = get_scheme(version)
+        if getattr(self, "_version", None) == scheme.id:
+            return
+        self._version = scheme.id
+        self.version = scheme.id
+        self.mnemonics = scheme.mnemonics
+        self.keyboard.set_keymap(scheme.keymap, scheme.z_label)
+        self.key_images = KeyTableImages(version=scheme.id)
+
     def start(
         self,
         session: Session,
@@ -417,7 +430,7 @@ class PracticeView(Gtk.Box):
             box.set_label(text)
 
     def _update_mnemonic(self, expected: str | None) -> None:
-        mnemonic = MNEMONICS.get(expected or "")
+        mnemonic = self.mnemonics.get(expected or "")
         if not mnemonic:
             self.mnemonic_box.set_visible(False)
             return

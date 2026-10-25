@@ -45,6 +45,13 @@ class KeyboardView(Gtk.DrawingArea):
         self._expected: str | None = None
         self._flash: dict[str, bool] = {}
         self._flash_token = 0
+        self._keymap = KEYMAP
+        self._z_label = "未用"
+
+    def set_keymap(self, keymap, z_label: str = "未用") -> None:
+        self._keymap = keymap
+        self._z_label = z_label
+        self.queue_draw()
 
     def set_expected(self, letter: str | None) -> None:
         if letter == self._expected:
@@ -91,7 +98,9 @@ class KeyboardView(Gtk.DrawingArea):
         self._draw_unused_key(cr, z_x, z_y, "z", base)
 
     def _draw_key(self, cr, x: float, y: float, letter: str, base: Gdk.RGBA) -> None:
-        info = KEYMAP[letter]
+        info = self._keymap.get(letter)
+        if info is None:
+            return
         zone_rgb = ZONE_COLORS[info.zone]
         expected = letter == self._expected
         flash = self._flash.get(letter)
@@ -175,7 +184,7 @@ class KeyboardView(Gtk.DrawingArea):
         self._text(cr, letter.upper(), x + 8, y + 4, 13, base, alpha=0.3, bold=True)
         self._text(
             cr,
-            "未用",
+            self._z_label,
             x + KEY_W / 2,
             y + 32,
             10,

@@ -26,6 +26,7 @@ class LookupDialog(Gtk.Window):
         super().__init__(transient_for=parent, modal=True, title="编码查询")
         self.lookup = lookup
         self.words = words
+        self.set_title(f"编码查询 · {lookup.scheme.short_label}")
         self._updating = False
         self._minimal_code = ""
         self._full_code = ""

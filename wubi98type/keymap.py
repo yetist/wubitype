@@ -61,6 +61,43 @@ KEYMAP: dict[str, KeyInfo] = {
     )
 }
 
+#: 86 版键位与主要码元（与 wubi86-table.png 对应）。
+KEYMAP_86: dict[str, KeyInfo] = {
+    info.letter: info
+    for info in (
+        # 3 区（撇）
+        _key("q", "35", "金", "金 钅 儿 夕 犭 鱼"),
+        _key("w", "34", "人", "人 八 亻 登 祭 头"),
+        _key("e", "33", "月", "月 用 乃 舟 衣 豕"),
+        _key("r", "32", "白", "白 手 扌 斤 厂 丘 气"),
+        _key("t", "31", "禾", "禾 竹 丿 攵 彳"),
+        # 4 区（捺）
+        _key("y", "41", "言", "言 讠 文 方 广 亠 圭"),
+        _key("u", "42", "立", "立 辛 六 门 疒 丬"),
+        _key("i", "43", "水", "水 氵 小 业 灬"),
+        _key("o", "44", "火", "火 灬 业 米"),
+        _key("p", "45", "之", "之 辶 廴 宀 衤 礻"),
+        # 1 区（横）
+        _key("a", "15", "工", "工 匚 戈 弋 七 艹 廿"),
+        _key("s", "14", "木", "木 丁 西"),
+        _key("d", "13", "大", "大 犬 三 羊 古 石 厂"),
+        _key("f", "12", "土", "土 士 二 干 十 寸 雨"),
+        _key("g", "11", "王", "王 一 五 戈 廿 卄"),
+        # 2 区（竖）
+        _key("h", "21", "目", "目 上 止 卜 虎 虍 皮"),
+        _key("j", "22", "日", "日 曰 早 虫 刂"),
+        _key("k", "23", "口", "口 川 丿"),
+        _key("l", "24", "田", "田 甲 口 四 车 力 罒"),
+        _key("m", "25", "山", "山 由 贝 冂 几 骨"),
+        # 5 区（折）
+        _key("x", "55", "纟", "纟 幺 弓 匕 比 丝"),
+        _key("c", "54", "又", "又 巴 马 厶"),
+        _key("v", "53", "女", "女 刀 九 艮 山 白 彐"),
+        _key("b", "52", "子", "子 了 阝 卩 也 耳 框"),
+        _key("n", "51", "已", "已 己 尸 心 忄 羽"),
+    )
+}
+
 ROWS: tuple[str, ...] = ("qwertyuiop", "asdfghjkl", "xcvbnm")
 UNUSED_KEYS = ("z",)
 
@@ -91,6 +128,35 @@ MNEMONICS: dict[str, str] = {
     "v": "女刀九艮山西倒",
     "c": "又巴牛厶马失蹄",
     "x": "幺母贯头弓和匕",
+}
+
+#: 86 版字根助记口诀（与 wubi86-table.png 底部口诀一致）。
+MNEMONICS_86: dict[str, str] = {
+    "g": "王旁青头戋五一",
+    "f": "土士二千十寸雨",
+    "d": "大犬三羊古石厂",
+    "s": "木丁西在一四里",
+    "a": "工戈草头右框七",
+    "h": "目止具头卜虎皮",
+    "j": "日早两竖与虫依",
+    "k": "口中一川三个竖",
+    "l": "田甲方框四车力",
+    "m": "山由骨头贝框几",
+    "t": "禾竹反文双人立",
+    "r": "白斤气头手边提",
+    "e": "月乃用舟家衣下",
+    "w": "人八登祭把头取",
+    "q": "金夕犭儿包头鱼",
+    "y": "言文方广在四一",
+    "u": "立辛两点病门里",
+    "i": "水族三点兴头小",
+    "o": "火业头四点米",
+    "p": "之字宝盖补礻衤",
+    "n": "已类左框心尸羽",
+    "b": "子耳了也框上举",
+    "v": "女刀九艮山白倒",
+    "c": "又巴马丢矢矣",
+    "x": "绞丝互幺弓和匕",
 }
 
 #: 口诀按五区排列，供界面展示。
@@ -127,6 +193,24 @@ KEY_SCOPE_OPTIONS: tuple[tuple[str, str], ...] = tuple(
 )
 KEY_SCOPE_LABELS: dict[str, str] = {
     scope_id: scope_label for scope_label, scope_id in KEY_SCOPE_OPTIONS
+}
+KEY_SCOPE_OPTIONS_86: tuple[tuple[str, str], ...] = tuple(
+    (
+        f"{zone} 区 · {ZONE_NAMES[zone]}（{' '.join(key.upper() for key in keys)}）",
+        f"zone-{zone}",
+    )
+    for zone, keys in ZONE_KEYS.items()
+) + tuple(
+    (
+        f"{letter.upper()} 键 · {KEYMAP_86[letter].code} {KEYMAP_86[letter].name}"
+        f" · {MNEMONICS_86[letter]}",
+        f"key-{letter}",
+    )
+    for keys in ZONE_KEYS.values()
+    for letter in keys
+)
+KEY_SCOPE_LABELS_86: dict[str, str] = {
+    scope_id: scope_label for scope_label, scope_id in KEY_SCOPE_OPTIONS_86
 }
 ZONE_COLORS = {
     1: (0.84, 0.38, 0.32),

@@ -22,22 +22,18 @@ from pathlib import Path
 from typing import Iterable
 
 from .keymap import ZONE_KEYS
+from .schemes import SCHEMES, get_scheme
 
 CODE_LETTERS = frozenset("abcdefghijklmnopqrstuvwxy")
 
-#: 98 版一级简码（每个键位一个高频字）。
+#: 一级简码（98/86 相同）。
 FIRST_LEVEL_CHARS = "一地在要工上是中国同和的有人我主产不为这民了发以经"
-#: 98 版键名汉字（X 键不再设键名，共 24 个）。
-KEY_NAME_CHARS = "王土大木工目日口田山禾白月人金言立水火之已子女又"
-
-DATA_FILES = {
-    "main": "wubi98.main.txt",
-    "extended": "wubi98.large.txt",
-}
+#: 98 版键名汉字（X 键不设键名，共 24 个）；86 版见 schemes。
+KEY_NAME_CHARS = SCHEMES["98"].key_names
 
 CHAR_SCOPES: tuple[tuple[str, str], ...] = (
     ("一级简码（25 字）", "first"),
-    ("键名汉字（24 字）", "keyname"),
+    ("键名汉字", "keyname"),
     ("二级简码（常用）", "level2"),
     ("三级简码", "level3"),
     ("全码单字", "full"),
@@ -96,11 +92,14 @@ def default_data_dir() -> Path:
     candidates.append(package_dir)
     candidates.append(Path.home() / ".local/share/wubi98type")
     for path in candidates:
-        if (path / DATA_FILES["main"]).is_file():
+        if any(
+            (path / scheme.main_file).is_file()
+            for scheme in SCHEMES.values()
+        ):
             return path
     raise FileNotFoundError(
-        "找不到词库文件 wubi98.main.txt。请把词库放在当前目录，"
-        "或设置环境变量 WUBI98TYPE_DATA 指向词库目录。"
+        "找不到词库文件 wubi98.main.txt 或 wubi86.main.txt。"
+        "请把词库放在当前目录，或设置环境变量 WUBI98TYPE_DATA 指向词库目录。"
     )
 
 
@@ -174,7 +173,7 @@ def _load_table(path: Path) -> dict[str, list[str]]:
 class Dictionary:
     """加载好的单字与词组集合。"""
 
-    _cache: dict[tuple[str, bool], "Dictionary"] = {}
+    _cache: dict[tuple[str, bool, str], "Dictionary"] = {}
 
     def __init__(
         self,
@@ -183,30 +182,44 @@ class Dictionary:
         *,
         data_dir: Path | None = None,
         extended: bool = False,
+        version: str = "98",
     ) -> None:
         self.chars = chars
         self.phrases = phrases
         self.data_dir = data_dir
         self.extended = extended
+        self.version = version
+        self.scheme = get_scheme(version)
         self._char_index = {entry.text: entry for entry in chars}
 
     @classmethod
-    def load(cls, data_dir: Path | None = None, *, extended: bool = False) -> "Dictionary":
+    def load(
+        cls,
+        data_dir: Path | None = None,
+        *,
+        extended: bool = False,
+        version: str = "98",
+    ) -> "Dictionary":
         data_dir = Path(data_dir) if data_dir else default_data_dir()
-        key = (str(data_dir.resolve()), extended)
+        scheme = get_scheme(version)
+        key = (str(data_dir.resolve()), extended, scheme.id)
         cached = cls._cache.get(key)
         if cached is not None:
             return cached
 
-        char_file = data_dir / (
-            DATA_FILES["extended"] if extended else DATA_FILES["main"]
+        main_file = data_dir / scheme.main_file
+        if not main_file.is_file():
+            raise FileNotFoundError(
+                f"找不到 {scheme.main_file}，无法使用{scheme.label}。"
+            )
+        char_file = (
+            data_dir / scheme.large_file if extended else main_file
         )
         if not char_file.is_file():
-            char_file = data_dir / DATA_FILES["main"]
-        phrase_file = data_dir / DATA_FILES["main"]
+            char_file = main_file
 
-        if char_file == phrase_file:
-            table = _load_table(char_file)
+        if char_file == main_file:
+            table = _load_table(main_file)
             chars = _make_entries(table, extended=extended, single=True)
             phrases = _make_entries(table, extended=extended, single=False)
         else:
@@ -214,9 +227,15 @@ class Dictionary:
                 _load_table(char_file), extended=extended, single=True
             )
             phrases = _make_entries(
-                _load_table(phrase_file), extended=extended, single=False
+                _load_table(main_file), extended=extended, single=False
             )
-        dictionary = cls(chars, phrases, data_dir=data_dir, extended=extended)
+        dictionary = cls(
+            chars,
+            phrases,
+            data_dir=data_dir,
+            extended=extended,
+            version=version,
+        )
         cls._cache[key] = dictionary
         return dictionary
 
@@ -231,7 +250,7 @@ class Dictionary:
         if scope == "keyname":
             return [
                 self._char_index[ch]
-                for ch in KEY_NAME_CHARS
+                for ch in self.scheme.key_names
                 if ch in self._char_index
             ]
         if scope == "level2":

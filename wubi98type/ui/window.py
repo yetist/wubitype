@@ -21,10 +21,10 @@ from ..data import (  # noqa: E402
 )
 from ..drill import Session  # noqa: E402
 from ..encoding import WordIndex  # noqa: E402
-from ..keymap import KEY_SCOPE_LABELS  # noqa: E402
 from ..lookup import ReverseLookup  # noqa: E402
 from ..passage import Passage, build_passage, read_text_file  # noqa: E402
 from ..poems import POEM_BY_ID  # noqa: E402
+from ..schemes import get_scheme  # noqa: E402
 from .home import MODE_IDS, MODE_LABELS, HomeView  # noqa: E402
 from .lookup import LookupDialog  # noqa: E402
 from .practice import PracticeView  # noqa: E402
@@ -42,13 +42,13 @@ class MainWindow(Gtk.ApplicationWindow):
         self._lookup_paused: Session | None = None
         self._recordable = True
 
-        self.set_title("五笔 98 打字练习")
+        self.set_title("五笔打字练习")
         self.set_default_size(980, 880)
         self.set_size_request(880, 700)
 
         header = Gtk.HeaderBar()
         header.set_show_title_buttons(True)
-        title = label("五笔 98 · 打字练习", "header-title")
+        title = label("五笔打字练习", "header-title")
         header.set_title_widget(title)
 
         menu = Gio.Menu()
@@ -119,11 +119,11 @@ class MainWindow(Gtk.ApplicationWindow):
 
     def _show_about(self) -> None:
         dialog = Gtk.AboutDialog(transient_for=self, modal=True)
-        dialog.set_program_name("五笔 98 打字练习")
+        dialog.set_program_name("五笔打字练习")
         dialog.set_version(__version__)
         dialog.set_comments(
-            "用 GTK4 编写的五笔 98 版打字练习器。\n"
-            "按码元规则出题，提供键位提示、速度与准确率统计、错题重练。"
+            "用 GTK4 编写的五笔 98 / 86 版打字练习器。\n"
+            "支持码元规则出题、键位提示、速度与准确率统计、错题重练。"
         )
         dialog.set_license_type(Gtk.License.MIT_X11)
         dialog.set_logo_icon_name("input-keyboard-symbolic")
@@ -135,8 +135,14 @@ class MainWindow(Gtk.ApplicationWindow):
             self._lookup_window.present()
             return
         try:
-            lookup = ReverseLookup.load(extended=self.config.extended)
-            words = WordIndex.load(extended=self.config.extended)
+            lookup = ReverseLookup.load(
+                extended=self.config.extended,
+                version=self.config.version,
+            )
+            words = WordIndex.load(
+                extended=self.config.extended,
+                version=self.config.version,
+            )
         except (OSError, FileNotFoundError) as error:
             self._alert("无法加载码表", str(error))
             return
@@ -163,20 +169,25 @@ class MainWindow(Gtk.ApplicationWindow):
         if self._keymap_window is not None:
             self._keymap_window.present()
             return
+        scheme = get_scheme(self.config.version)
         try:
             data_dir = self.dictionary.data_dir if self.dictionary else default_data_dir()
         except FileNotFoundError:
             data_dir = Path.cwd()
         candidates = (
-            data_dir / "wubi98-table.png",
-            Path.cwd() / "wubi98-table.png",
-            Path(__file__).resolve().parents[2] / "wubi98-table.png",
+            data_dir / scheme.table_image,
+            Path.cwd() / scheme.table_image,
+            Path(__file__).resolve().parents[2] / scheme.table_image,
         )
         image = next((path for path in candidates if path.is_file()), None)
         if image is None:
-            self._alert("找不到键位图 wubi98-table.png")
+            self._alert(f"找不到键位图 {scheme.table_image}")
             return
-        window = Gtk.Window(transient_for=self, modal=True, title="98 版键位图")
+        window = Gtk.Window(
+            transient_for=self,
+            modal=True,
+            title=f"{scheme.short_label}键位图",
+        )
         window.set_default_size(1100, 720)
         header = Gtk.HeaderBar()
         header.set_show_title_buttons(True)
@@ -233,9 +244,18 @@ class MainWindow(Gtk.ApplicationWindow):
         recordable: bool = True,
     ) -> None:
         self._recordable = recordable
+        version = self.config.version
+        scheme = get_scheme(version)
         try:
-            if self.dictionary is None or self.dictionary.extended != self.config.extended:
-                self.dictionary = Dictionary.load(extended=self.config.extended)
+            if (
+                self.dictionary is None
+                or self.dictionary.extended != self.config.extended
+                or self.dictionary.version != version
+            ):
+                self.dictionary = Dictionary.load(
+                    extended=self.config.extended,
+                    version=version,
+                )
         except (OSError, FileNotFoundError) as error:
             self._alert("无法加载词库", str(error))
             return
@@ -244,12 +264,12 @@ class MainWindow(Gtk.ApplicationWindow):
             if items is not None:
                 buckets = [(list(items), 1.0)]
                 total = len(items)
-                meta = meta or f"错题重练 · {total} 题"
+                meta = meta or f"{scheme.short_label} · 错题重练 · {total} 题"
                 passage = None
             elif self.config.mode == "text":
                 passage = self._build_text_passage()
                 total = passage.char_count
-                meta = f"文稿跟打 · {passage.title} · {total} 字"
+                meta = f"{scheme.short_label} · 文稿跟打 · {passage.title} · {total} 字"
             else:
                 passage = None
                 buckets = self.dictionary.buckets(
@@ -267,18 +287,22 @@ class MainWindow(Gtk.ApplicationWindow):
         except (ValueError, OSError) as error:
             self._alert("无法开始练习", str(error))
             return
+        self.practice.set_version(scheme.id)
         self.practice.start(session, meta, self.config.hint, passage=passage)
         self.practice_page.get_vadjustment().set_value(0)
         self.stack.set_visible_child(self.practice_page)
 
     def _meta_label(self, total: int) -> str:
-        mode = MODE_IDS.index(self.config.mode)
-        mode_label = MODE_LABELS[mode]
+        scheme = get_scheme(self.config.version)
+        mode_label = MODE_LABELS[MODE_IDS.index(self.config.mode)]
         if self.config.mode == "keys":
-            scope_label = KEY_SCOPE_LABELS.get(
+            scope_label = scheme.key_scope_labels.get(
                 self.config.key_scope, "全部键位"
             )
-            return f"{mode_label} · {scope_label} · {total} 题"
+            return (
+                f"{scheme.short_label} · {mode_label} · "
+                f"{scope_label} · {total} 题"
+            )
         if self.config.mode == "phrase":
             options = PHRASE_SCOPES
             scope_id = self.config.phrase_scope
@@ -289,7 +313,10 @@ class MainWindow(Gtk.ApplicationWindow):
             (label_text for label_text, sid in options if sid == scope_id),
             "全部",
         )
-        return f"{mode_label} · {scope_label} · {total} 题"
+        return (
+            f"{scheme.short_label} · {mode_label} · "
+            f"{scope_label} · {total} 题"
+        )
 
     def _build_text_passage(self) -> Passage:
         assert self.dictionary is not None
@@ -305,7 +332,10 @@ class MainWindow(Gtk.ApplicationWindow):
                 raise ValueError("找不到所选古诗")
             text = poem.text
             title = f"《{poem.display_title}》"
-        index = WordIndex.load(extended=self.config.extended)
+        index = WordIndex.load(
+            extended=self.config.extended,
+            version=self.config.version,
+        )
         return build_passage(text, title, index)
 
     def _finish_session(self, session: Session, *, aborted: bool = False) -> None:

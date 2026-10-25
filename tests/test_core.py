@@ -15,11 +15,24 @@ from wubi98type.data import (
 )
 from wubi98type.drill import PressResult, Session
 from wubi98type.encoding import WordIndex
-from wubi98type.keymap import KEYMAP, MNEMONICS
-from wubi98type.keytable import KEY_BOXES, TABLE_SIZE, KeyTableImages, find_table_image
+from wubi98type.keymap import (
+    KEYMAP,
+    KEYMAP_86,
+    MNEMONICS,
+    MNEMONICS_86,
+)
+from wubi98type.keytable import (
+    KEY_BOXES,
+    KEY_BOXES_86,
+    TABLE_SIZE,
+    TABLE_SIZE_86,
+    KeyTableImages,
+    find_table_image,
+)
 from wubi98type.lookup import ReverseLookup, clean_code
 from wubi98type.passage import build_passage, read_text_file
 from wubi98type.poems import POEMS, POEM_BY_ID
+from wubi98type.schemes import SCHEMES, get_scheme
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -28,6 +41,7 @@ class DataTest(unittest.TestCase):
     @classmethod
     def setUpClass(cls) -> None:
         cls.dictionary = Dictionary.load(ROOT)
+        cls.dictionary86 = Dictionary.load(version="86")
 
     def test_first_level_scope_has_25_chars(self) -> None:
         entries = self.dictionary.char_scope("first")
@@ -106,11 +120,54 @@ class DataTest(unittest.TestCase):
             all(entry.code.startswith("a") for entry in buckets[0][0])
         )
 
+    def test_86_data_and_key_names(self) -> None:
+        self.assertGreater(len(self.dictionary86.chars), 0)
+        self.assertGreater(len(self.dictionary86.phrases), 0)
+        self.assertEqual(len(self.dictionary86.char_scope("first")), 25)
+        keynames = self.dictionary86.char_scope("keyname")
+        self.assertEqual(len(keynames), 25)
+        self.assertEqual(
+            "".join(entry.text for entry in keynames),
+            get_scheme("86").key_names,
+        )
+        self.assertIn("纟", {entry.text for entry in keynames})
+        self.assertEqual(self.dictionary86.version, "86")
+
+    def test_86_key_scopes(self) -> None:
+        entries = self.dictionary86.key_scope("key-a")
+        self.assertGreater(len(entries), 0)
+        self.assertTrue(all(entry.code.startswith("a") for entry in entries))
+        for zone in range(1, 6):
+            zone_entries = self.dictionary86.key_scope(f"zone-{zone}")
+            self.assertGreater(len(zone_entries), 0)
+
+    def test_86_extended_library(self) -> None:
+        extended = Dictionary.load(version="86", extended=True)
+        self.assertEqual(extended.version, "86")
+        self.assertGreater(len(extended.chars), len(self.dictionary86.chars))
+        self.assertGreater(len(extended.phrases), 0)
+
 
 class KeymapTest(unittest.TestCase):
     def test_mnemonics_cover_every_key(self) -> None:
         self.assertEqual(set(MNEMONICS), set(KEYMAP))
         self.assertEqual(len(MNEMONICS), 25)
+
+    def test_86_mnemonics_cover_every_key(self) -> None:
+        self.assertEqual(set(MNEMONICS_86), set(KEYMAP_86))
+        self.assertEqual(len(MNEMONICS_86), 25)
+        for line in MNEMONICS_86.values():
+            self.assertTrue(line)
+        self.assertEqual(get_scheme("86").z_label, "学习键")
+        self.assertEqual(get_scheme("98").z_label, "未用")
+
+    def test_schemes(self) -> None:
+        self.assertEqual(set(SCHEMES), {"98", "86"})
+        self.assertEqual(SCHEMES["98"].main_file, "wubi98.main.txt")
+        self.assertEqual(SCHEMES["86"].main_file, "wubi86.main.txt")
+        self.assertEqual(SCHEMES["86"].table_image, "wubi86-table.png")
+        self.assertEqual(len(SCHEMES["86"].key_scope_options), 30)
+        self.assertEqual(SCHEMES["86"].key_names[-1], "纟")
 
     def test_mnemonics_are_seven_characters(self) -> None:
         for letter, line in MNEMONICS.items():
@@ -159,11 +216,30 @@ class KeyTableTest(unittest.TestCase):
         self.assertIsNotNone(preview)
         self.assertEqual((preview.get_width(), preview.get_height()), (132, 162))
 
+    def test_86_boxes_and_crop(self) -> None:
+        self.assertEqual(set(KEY_BOXES_86), set(KEYMAP_86))
+        width, height = TABLE_SIZE_86
+        for letter, (x, y, box_w, box_h) in KEY_BOXES_86.items():
+            self.assertGreaterEqual(x, 0, letter)
+            self.assertGreaterEqual(y, 0, letter)
+            self.assertLessEqual(x + box_w, width, letter)
+            self.assertLessEqual(y + box_h, height, letter)
+        path = find_table_image("86")
+        if path is None:
+            self.skipTest("未找到 wubi86-table.png")
+        images = KeyTableImages(version="86", path=path)
+        for letter, (x, y, box_w, box_h) in KEY_BOXES_86.items():
+            texture = images.texture(letter)
+            self.assertIsNotNone(texture, letter)
+            self.assertEqual(texture.get_width(), box_w, letter)
+            self.assertEqual(texture.get_height(), box_h, letter)
+
 
 class LookupTest(unittest.TestCase):
     @classmethod
     def setUpClass(cls) -> None:
         cls.lookup = ReverseLookup.load(ROOT)
+        cls.lookup86 = ReverseLookup.load(version="86")
 
     def test_exact_short_code(self) -> None:
         result = self.lookup.search("a")
@@ -214,11 +290,19 @@ class LookupTest(unittest.TestCase):
         self.assertEqual(result.exact, ())
         self.assertEqual(result.prefix, ())
 
+    def test_86_reverse_lookup(self) -> None:
+        result = self.lookup86.search("ytsm")
+        self.assertTrue(any(item.text == "计算机" for item in result.exact))
+        result98 = self.lookup.search("ytsm")
+        self.assertFalse(any(item.text == "计算机" for item in result98.exact))
+        self.assertEqual(self.lookup86.version, "86")
+
 
 class EncodingTest(unittest.TestCase):
     @classmethod
     def setUpClass(cls) -> None:
         cls.index = WordIndex.load(ROOT)
+        cls.index86 = WordIndex.load(version="86")
 
     def test_char_preferred_short_code(self) -> None:
         word = self.index.get("的")
@@ -286,11 +370,29 @@ class EncodingTest(unittest.TestCase):
         self.assertEqual(word.preferred_code, "a")
         self.assertEqual(word.full_code, "aaaa")
 
+    def test_86_phrase_codes(self) -> None:
+        word = self.index86.get("计算机")
+        self.assertIsNotNone(word)
+        self.assertEqual(word.preferred_code, "ytsm")
+        result = self.index86.encode("计算机")
+        self.assertEqual(len(result.segments), 1)
+        self.assertEqual(result.minimal_code, "ytsm")
+        self.assertEqual(self.index.version, "98")
+        self.assertEqual(self.index86.version, "86")
+
+    def test_86_short_codes_and_segmentation(self) -> None:
+        result = self.index86.encode("我爱北京天安门")
+        self.assertEqual(
+            [(segment.text, segment.code) for segment in result.segments],
+            [("我", "q"), ("爱", "ep"), ("北京", "uxyi"), ("天安门", "gpuy")],
+        )
+
 
 class PoemTest(unittest.TestCase):
     @classmethod
     def setUpClass(cls) -> None:
         cls.words = WordIndex.load(ROOT)
+        cls.words86 = WordIndex.load(version="86")
 
     def test_poem_collection(self) -> None:
         self.assertEqual(len(POEMS), 80)
@@ -369,6 +471,12 @@ class PoemTest(unittest.TestCase):
     def test_build_empty_passage_rejected(self) -> None:
         with self.assertRaises(ValueError):
             build_passage("，。！", "空文稿", self.words)
+
+    def test_all_poems_supported_in_86(self) -> None:
+        for poem in POEMS:
+            passage = build_passage(poem.text, poem.title, self.words86)
+            hanzi_count = sum(1 for char in poem.text if is_hanzi(char))
+            self.assertEqual(passage.char_count, hanzi_count, poem.title)
 
 
 class SessionTest(unittest.TestCase):
@@ -547,6 +655,32 @@ class ConfigTest(unittest.TestCase):
         self.assertEqual(
             Config(key_scope="zone-9").normalise().key_scope, "zone-1"
         )
+
+    def test_version_normalised(self) -> None:
+        self.assertEqual(Config(version="86").normalise().version, "86")
+        self.assertEqual(Config(version="99").normalise().version, "98")
+
+    def test_best_records_are_per_version(self) -> None:
+        config = Config(version="98")
+        self.assertTrue(
+            config.record("char", speed=80, accuracy=98, chars=20)
+        )
+        self.assertIsNotNone(config.best_for("char"))
+        config.version = "86"
+        self.assertIsNone(config.best_for("char"))
+        self.assertTrue(
+            config.record("char", speed=60, accuracy=95, chars=20)
+        )
+        config.version = "98"
+        best = config.best_for("char")
+        self.assertEqual(best["speed"], 80.0)
+
+    def test_old_best_records_migrate_to_98(self) -> None:
+        config = Config(
+            best={"char": {"speed": 50, "accuracy": 96, "chars": 20, "score": 48}}
+        ).normalise()
+        self.assertIn("98:char", config.best)
+        self.assertNotIn("char", config.best)
 
 
 if __name__ == "__main__":
