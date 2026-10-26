@@ -104,6 +104,7 @@ class LookupDialog(Gtk.Window):
         self.listbox = Gtk.ListBox()
         self.listbox.add_css_class("lookup-list")
         self.listbox.set_selection_mode(Gtk.SelectionMode.NONE)
+        self.listbox.set_activate_on_single_click(True)
         scroller = Gtk.ScrolledWindow()
         scroller.set_policy(Gtk.PolicyType.NEVER, Gtk.PolicyType.AUTOMATIC)
         scroller.set_overlay_scrolling(False)
@@ -193,6 +194,7 @@ class LookupDialog(Gtk.Window):
         self.encode_list = Gtk.ListBox()
         self.encode_list.add_css_class("lookup-list")
         self.encode_list.set_selection_mode(Gtk.SelectionMode.NONE)
+        self.encode_list.set_activate_on_single_click(True)
         scroller = Gtk.ScrolledWindow()
         scroller.set_policy(Gtk.PolicyType.NEVER, Gtk.PolicyType.AUTOMATIC)
         scroller.set_overlay_scrolling(False)
@@ -287,6 +289,16 @@ class LookupDialog(Gtk.Window):
         _row, action = self._nav_rows[self._nav_index]
         action()
 
+    @staticmethod
+    def _add_row_click(row: Gtk.ListBoxRow, callback) -> None:
+        gesture = Gtk.GestureClick()
+        gesture.set_button(1)
+        gesture.connect(
+            "released",
+            lambda _gesture, _n_press, _x, _y: callback(),
+        )
+        row.add_controller(gesture)
+
     def _ensure_row_visible(self, row: Gtk.ListBoxRow) -> None:
         scroller = (
             self.encode_scroller
@@ -377,6 +389,10 @@ class LookupDialog(Gtk.Window):
             box.append(widget)
         row.set_child(box)
         row.connect("activate", self._on_reverse_row_activated, item)
+        self._add_row_click(
+            row,
+            lambda: self._on_reverse_row_activated(row, item),
+        )
         self.listbox.append(row)
         self._nav_rows.append(
             (
@@ -469,6 +485,10 @@ class LookupDialog(Gtk.Window):
             box.append(widget)
         row.set_child(box)
         row.connect("activate", self._on_encode_row_activated, segment)
+        self._add_row_click(
+            row,
+            lambda: self._on_encode_row_activated(row, segment),
+        )
         self.encode_list.append(row)
         self._nav_rows.append(
             (
