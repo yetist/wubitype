@@ -17,15 +17,16 @@ from ..data import (  # noqa: E402
     CHAR_SCOPES,
     PHRASE_SCOPES,
     Dictionary,
-    default_data_dir,
 )
 from ..drill import Session  # noqa: E402
 from ..encoding import WordIndex  # noqa: E402
+from ..keytable import find_table_image  # noqa: E402
 from ..lookup import ReverseLookup  # noqa: E402
 from ..passage import Passage, build_passage, read_text_file  # noqa: E402
 from ..poems import POEM_BY_ID  # noqa: E402
 from ..schemes import get_scheme  # noqa: E402
 from .home import MODE_IDS, MODE_LABELS, HomeView  # noqa: E402
+from .keymap import KeymapWindow  # noqa: E402
 from .lookup import LookupDialog  # noqa: E402
 from .practice import PracticeView  # noqa: E402
 from .shortcuts import ShortcutsDialog  # noqa: E402
@@ -254,35 +255,19 @@ class MainWindow(Gtk.ApplicationWindow):
             self._keymap_window.present()
             return
         scheme = get_scheme(self.config.version)
-        try:
-            data_dir = self.dictionary.data_dir if self.dictionary else default_data_dir()
-        except FileNotFoundError:
-            data_dir = Path.cwd()
-        candidates = (
-            data_dir / scheme.table_image,
-            Path.cwd() / scheme.table_image,
-            Path(__file__).resolve().parents[2] / scheme.table_image,
-        )
-        image = next((path for path in candidates if path.is_file()), None)
+        image = find_table_image(scheme.id)
         if image is None:
             self._alert(f"找不到键位图 {scheme.table_image}")
             return
-        window = Gtk.Window(
-            transient_for=self,
-            modal=True,
-            title=f"{scheme.short_label}键位图",
-        )
-        window.set_default_size(1100, 720)
-        header = Gtk.HeaderBar()
-        header.set_show_title_buttons(True)
-        window.set_titlebar(header)
-        picture = Gtk.Picture(file=Gio.File.new_for_path(str(image)))
-        picture.set_can_shrink(True)
-        picture.set_margin_top(8)
-        picture.set_margin_bottom(8)
-        picture.set_margin_start(8)
-        picture.set_margin_end(8)
-        window.set_child(picture)
+        try:
+            window = KeymapWindow(
+                self,
+                image,
+                f"{scheme.short_label}键位图",
+            )
+        except (OSError, ValueError) as error:
+            self._alert("无法打开键位图", str(error))
+            return
         window.connect("close-request", self._on_keymap_closed)
         self._keymap_window = window
         window.present()
