@@ -16,38 +16,74 @@
 - **字根口诀**：首页显示当前版本 25 键完整助记口诀，练习时同步显示当前应敲键对应的口诀。
 - **编码查询（双向）**：编码反查输入 1–4 位编码查询单字/词组；汉字查码输入汉字、词组或句子，按最长词组优先切分并给出最少击键编码与全码。结果点击可复制。
 - **错题本**：结算页列出出错或跳过的字词，可一键重练。
-- **最佳记录**：按练习模式分别保存，可清空。
+- **最佳记录**：按编码版本和练习模式分别保存，可清空。
 - **扩展字库**：可选加载 `wubi98.large.txt` / `wubi86.large.txt` 中的扩展 A/B 区生僻字。
 - **键位总图**：菜单中可直接查看当前版本自带的键位图。
 - **跟随主题**：自动适配明暗模式，无额外主题依赖。
 
-## 运行
+## 安装与运行
 
 依赖：Python ≥ 3.10、GTK ≥ 4.10、PyGObject。
 
-```bash
-# Debian / Ubuntu
-sudo apt install python3-gi gir1.2-gtk-4.0
+Debian / Ubuntu：
 
-# 在仓库目录直接运行（需要同目录下的 wubi98* / wubi86* 码表）
-python3 -m wubitype
+```bash
+sudo apt install python3-gi gir1.2-gtk-4.0
 ```
 
-安装为命令：
+在源码树中直接运行：
+
+```bash
+PYTHONPATH=src python3 -m wubitype
+# 或
+PYTHONPATH=src ./data/wubitype
+```
+
+安装到系统（推荐，包含桌面菜单、图标、AppStream 元数据和 man 手册）：
+
+```bash
+meson setup build --prefix=/usr
+sudo meson install -C build
+wubitype
+```
+
+安装到用户目录：
+
+```bash
+meson setup build --prefix="$HOME/.local"
+meson install -C build
+```
+
+也可以使用 pip 安装，码表会随 wheel 安装到对应前缀的 `share/wubitype`：
 
 ```bash
 pip install .
 wubitype
 ```
 
-词库按以下顺序查找：
+码表按以下顺序查找：
 
 1. 环境变量 `WUBITYPE_DATA` 指向的目录；
-2. 当前工作目录；
-3. 仓库/安装包所在目录；
-4. `~/.local/share/wubitype/`。
+2. 源码树 `data/` 或当前工作目录；
+3. `XDG_DATA_DIRS` 下的 `wubitype/`（通常是 `/usr/share/wubitype/`）；
+4. `~/.local/share/wubitype/`；
+5. 当前 Python 前缀的 `share/wubitype/`。
 
-只要目录中有 `wubi98.main.txt` 或 `wubi86.main.txt` 即可；标准码表同时包含单字和词组编码。扩展字库需要对应的 `wubi98.large.txt` / `wubi86.large.txt`。当前键位图形默认从同目录的 `wubi98-table.png` / `wubi86-table.png` 裁剪，也可用 `WUBITYPE_TABLE` 直接指定图片路径。
+目录中只要有 `wubi98.main.txt` 或 `wubi86.main.txt` 即可；标准码表同时包含单字和词组编码。扩展字库需要对应的 `wubi98.large.txt` / `wubi86.large.txt`。当前键位图形默认从同目录的 `wubi98-table.png` / `wubi86-table.png` 裁剪，也可用 `WUBITYPE_TABLE` 直接指定图片路径。
+
+系统安装后的主要文件：
+
+```
+/usr/bin/wubitype
+/usr/lib/python3.*/site-packages/wubitype/
+/usr/share/wubitype/                 # 码表和键位图
+/usr/share/applications/io.github.wubitype.WubiType.desktop
+/usr/share/metainfo/io.github.wubitype.WubiType.metainfo.xml
+/usr/share/icons/hicolor/scalable/apps/io.github.wubitype.WubiType.svg
+/usr/share/man/man1/wubitype.1
+```
+
+设置和最佳成绩保存在 `~/.config/wubitype/config.json`（遵循 `XDG_CONFIG_HOME`）。
 
 ## 使用
 
@@ -112,11 +148,9 @@ wubitype
 
 > `R` 本身是五笔编码键（32 R），为避免影响正常输入，重新开始使用 `Ctrl+R`。
 
-设置和最佳成绩保存在 `~/.config/wubitype/config.json`（遵循 `XDG_CONFIG_HOME`）。
-
 ## 分级说明
 
-两个版本的标准码表（`wubi98.main.txt` / `wubi86.main.txt`，均包含单字与词组）包含：
+两个版本的标准码表（`data/wubi98.main.txt` / `data/wubi86.main.txt`，均包含单字与词组）包含：
 
 | 范围 | 98 版 | 86 版 |
 | --- | ---: | ---: |
@@ -137,37 +171,63 @@ wubitype
 
 ```bash
 # 单元测试（纯逻辑，无需图形环境）
-python3 -m unittest discover -s tests -v
+PYTHONPATH=src python3 -m unittest discover -s tests -v
+
+# 或通过 Meson 运行
+meson setup build
+meson test -C build
 ```
 
 代码结构：
 
 ```
-wubitype/
-  data.py        词库解析、分级、题目池
-  drill.py       出题与判定状态机（可独立测试）
-  encoding.py    汉字查码、最长词组切分、最少击键编码
-  passage.py     文稿预处理、自定义文本读取、按段序列
-  poems.py       小学生必备古诗 80 首
-  config.py      设置与最佳成绩持久化
-  schemes.py     98 / 86 版本配置（码表、键位、图片）
-  keymap.py      98 / 86 键位、码元与助记口诀
-  keytable.py    从当前版本键位图裁剪键位图形
-  lookup.py      编码反查索引与查询
+data/                    码表、键位图、桌面文件、AppStream、图标、man、启动脚本
+src/wubitype/
+  data.py                词库解析、分级、题目池
+  drill.py               出题与判定状态机（可独立测试）
+  encoding.py            汉字查码、最长词组切分、最少击键编码
+  passage.py             文稿预处理、自定义文本读取、按段序列
+  poems.py               小学生必备古诗 80 首
+  config.py              设置与最佳成绩持久化
+  schemes.py             98 / 86 版本配置（码表、键位、图片）
+  keymap.py              98 / 86 键位、码元与助记口诀
+  keytable.py            从当前版本键位图裁剪键位图形
+  lookup.py              编码反查索引与查询
   ui/
-    home.py      首页
-    practice.py  练习页
-    summary.py   结算页
-    keyboard.py  虚拟键盘（Cairo 绘制）
-    lookup.py    双向编码查询窗口
-    window.py    主窗口、快捷键、菜单
-  style.css      GTK4 样式
+    home.py              首页
+    practice.py          练习页
+    summary.py           结算页
+    keyboard.py          虚拟键盘（Cairo 绘制）
+    lookup.py            双向编码查询窗口
+    shortcuts.py         快捷键帮助
+    window.py            主窗口、快捷键、菜单
+  style.css              GTK4 样式
 tests/test_core.py
+meson.build              系统安装、桌面集成、测试
+pyproject.toml           Python 打包
+MANIFEST.in              sdist 数据文件
+LICENSE                  MIT
 ```
+
+## 发布检查
+
+- Meson 安装脚本、桌面文件、AppStream 元数据、SVG 图标、man 手册均已提供
+- 应用 ID：`io.github.wubitype.WubiType`
+- 数据安装到 `/usr/share/wubitype/`
+- 配置目录：`~/.config/wubitype/`
+- wheel 通过 `data-files` 携带码表
+- `desktop-file-validate` 通过
+- AppStream 校验除“缺少 homepage URL”和中文大小写提示外无错误
+
+## 许可
+
+本项目代码以 MIT 许可发布，见 `LICENSE`。内置古诗原文为公有领域作品。
 
 ## 待办
 
 - 增加指法提示（左右手、手指分区）。
-- 支持按区/键位专项练习。
 - 记录每组历史成绩并绘制速度曲线。
-- 打包桌面文件与图标。
+- 增加英文/多语言界面与 AppStream 翻译。
+- 提供 Flatpak 或各发行版打包配方。
+- 增加高对比度/大字号等无障碍选项。
+

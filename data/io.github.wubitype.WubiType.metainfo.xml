@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<component type="desktop-application">
+  <id>io.github.wubitype.WubiType</id>
+  <name>五笔打字通</name>
+  <summary>五笔 98 / 86 版打字练习</summary>
+  <metadata_license>CC0-1.0</metadata_license>
+  <project_license>MIT</project_license>
+  <developer id="io.github.wubitype">
+    <name>wubitype contributors</name>
+  </developer>
+  <description>
+    <p>
+      五笔打字通是一款基于 GTK4 的五笔字型打字练习软件，支持五笔 98 版和 86 版。
+    </p>
+    <p>主要功能：</p>
+    <ul>
+      <li>单字、词组、混合练习，以及按区/键位的专项练习</li>
+      <li>内置小学生必备古诗 80 首和自定义文稿跟打</li>
+      <li>虚拟键盘、键位图、字根助记口诀和当前键位图形提示</li>
+      <li>编码反查、汉字查码和最长词组优先切分</li>
+      <li>速度、准确率、连击、错题本和最佳成绩统计</li>
+    </ul>
+  </description>
+  <launchable type="desktop-id">io.github.wubitype.WubiType.desktop</launchable>
+  <provides>
+    <binary>wubitype</binary>
+  </provides>
+  <categories>
+    <category>Education</category>
+    <category>Languages</category>
+  </categories>
+  <keywords>
+    <keyword>wubi</keyword>
+    <keyword>typing</keyword>
+    <keyword>chinese</keyword>
+    <keyword>五笔</keyword>
+  </keywords>
+  <content_rating type="oars-1.1"/>
+  <releases>
+    <release version="0.1.0" date="2026-10-26"/>
+  </releases>
+</component>

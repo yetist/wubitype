@@ -11,7 +11,7 @@ gi.require_version("Gdk", "4.0")
 
 from gi.repository import Gdk, Gio, GLib, Gtk  # noqa: E402
 
-from .. import __version__  # noqa: E402
+from .. import APP_ID, __version__  # noqa: E402
 from ..config import Config, HINTS, save_config  # noqa: E402
 from ..data import (  # noqa: E402
     CHAR_SCOPES,
@@ -182,7 +182,7 @@ class MainWindow(Gtk.ApplicationWindow):
             "提供码元规则出题、键位提示、速度与准确率统计、错题重练。"
         )
         dialog.set_license_type(Gtk.License.MIT_X11)
-        dialog.set_logo_icon_name("input-keyboard-symbolic")
+        dialog.set_logo_icon_name(APP_ID)
         dialog.set_authors(["wubitype contributors"])
         dialog.present()
 

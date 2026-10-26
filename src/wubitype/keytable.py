@@ -12,6 +12,7 @@ gi.require_version("GdkPixbuf", "2.0")
 
 from gi.repository import Gdk, GdkPixbuf, GLib  # noqa: E402
 
+from .data import default_data_dir  # noqa: E402
 from .schemes import get_scheme  # noqa: E402
 
 #: wubi98-table.png 中 25 个键位图形的像素范围 ``(x, y, width, height)``。
@@ -102,15 +103,24 @@ def find_table_image(version: str = "98") -> Path | None:
     if data_dir:
         candidates.append(Path(data_dir).expanduser() / scheme.table_image)
     package_dir = Path(__file__).resolve().parent
+    repo_root = package_dir.parent.parent
     candidates.extend(
         (
             Path.cwd() / scheme.table_image,
-            package_dir.parent / scheme.table_image,
+            Path.cwd() / "data" / scheme.table_image,
             package_dir / scheme.table_image,
+            package_dir.parent / scheme.table_image,
+            package_dir.parent / "data" / scheme.table_image,
+            repo_root / scheme.table_image,
+            repo_root / "data" / scheme.table_image,
             Path.home() / ".local/share/wubitype" / scheme.table_image,
             Path.home() / ".local/share/wubi98type" / scheme.table_image,
         )
     )
+    try:
+        candidates.append(default_data_dir() / scheme.table_image)
+    except FileNotFoundError:
+        pass
     return next((path for path in candidates if path.is_file()), None)
 
 

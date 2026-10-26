@@ -17,6 +17,7 @@
 from __future__ import annotations
 
 import os
+import sys
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Iterable
@@ -80,21 +81,54 @@ def is_hanzi(char: str, extended: bool = False) -> bool:
     return False
 
 
+def _xdg_data_roots() -> list[Path]:
+    home = os.environ.get("XDG_DATA_HOME")
+    roots = [Path(home).expanduser()] if home else [
+        Path.home() / ".local/share"
+    ]
+    data_dirs = os.environ.get("XDG_DATA_DIRS") or "/usr/local/share:/usr/share"
+    roots.extend(
+        Path(item).expanduser()
+        for item in data_dirs.split(":")
+        if item.strip()
+    )
+    return roots
+
+
 def default_data_dir() -> Path:
-    """按优先级寻找词库目录。"""
+    """按优先级寻找词库目录（源码树或系统安装目录）。"""
     candidates: list[Path] = []
     env = os.environ.get("WUBITYPE_DATA") or os.environ.get(
         "WUBI98TYPE_DATA"
     )
     if env:
         candidates.append(Path(env).expanduser())
-    candidates.append(Path.cwd())
+    cwd = Path.cwd()
+    candidates.extend((cwd, cwd / "data"))
     package_dir = Path(__file__).resolve().parent
-    candidates.append(package_dir.parent)
-    candidates.append(package_dir)
+    repo_root = package_dir.parent.parent
+    candidates.extend(
+        (
+            package_dir,
+            package_dir.parent,
+            package_dir.parent / "data",
+            repo_root,
+            repo_root / "data",
+        )
+    )
+    for root in _xdg_data_roots():
+        candidates.append(root / "wubitype")
+        candidates.append(root / "wubi98type")
+    candidates.append(Path(sys.prefix) / "share" / "wubitype")
     candidates.append(Path.home() / ".local/share/wubitype")
     candidates.append(Path.home() / ".local/share/wubi98type")
+
+    seen: set[str] = set()
     for path in candidates:
+        key = str(path)
+        if key in seen:
+            continue
+        seen.add(key)
         if any(
             (path / scheme.main_file).is_file()
             for scheme in SCHEMES.values()
@@ -102,7 +136,8 @@ def default_data_dir() -> Path:
             return path
     raise FileNotFoundError(
         "找不到词库文件 wubi98.main.txt 或 wubi86.main.txt。"
-        "请把词库放在当前目录，或设置环境变量 WUBITYPE_DATA 指向词库目录。"
+        "请安装到 /usr/share/wubitype，或设置环境变量 WUBITYPE_DATA "
+        "指向词库目录。"
     )
 
 

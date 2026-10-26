@@ -28,7 +28,7 @@ class Application(Gtk.Application):
     def do_startup(self) -> None:
         Gtk.Application.do_startup(self)
         GLib.set_application_name("五笔打字通")
-        Gtk.Window.set_default_icon_name("input-keyboard")
+        Gtk.Window.set_default_icon_name(APP_ID)
 
         css_file = Path(__file__).with_name("style.css")
         if css_file.is_file():

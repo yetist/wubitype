@@ -5,11 +5,14 @@
 
 ## 参考资料
 
-目录中有以下文件：
+目录结构：
 
-- wubi98.main.txt wubi98.large.txt 分别是 98 版标准码表和扩展大字集码表（main 同时包含单字与词组）
-- wubi86.main.txt wubi86.large.txt 分别是 86 版标准码表和扩展大字集码表（main 同时包含单字与词组）
-- wubi98-table.png wubi86-table.png 分别是 98 版和 86 版键位图
+- `data/wubi98.main.txt` `data/wubi98.large.txt` 分别是 98 版标准码表和扩展大字集码表（main 同时包含单字与词组）
+- `data/wubi86.main.txt` `data/wubi86.large.txt` 分别是 86 版标准码表和扩展大字集码表（main 同时包含单字与词组）
+- `data/wubi98-table.png` `data/wubi86-table.png` 分别是 98 版和 86 版键位图
+- `src/wubitype/` 是 Python 源码包，`tests/` 是单元测试
+- `data/` 还包含桌面文件、AppStream 元数据、图标、man 手册和启动脚本
+- `meson.build` 负责系统安装与桌面集成
 
 98 版最大的变革在于引入了 “码元” 概念来取代 86 版的“字根”，通过更严格、更符合国家规范的现代汉字笔顺和结构重新整理了字根表，使得拆分更加规范、符合直观。
 

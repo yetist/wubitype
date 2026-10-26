@@ -1,0 +1,16 @@
+[Desktop Entry]
+Type=Application
+Name=五笔打字通
+Name[en]=Wubi Type
+GenericName=五笔打字练习
+GenericName[en]=Wubi typing tutor
+Comment=练习五笔 98 版和 86 版编码
+Comment[en]=Practice Wubi 98 and 86 input codes
+Exec=wubitype
+TryExec=wubitype
+Icon=io.github.wubitype.WubiType
+Terminal=false
+Categories=Education;Languages;
+Keywords=wubi;typing;chinese;五笔;打字;
+StartupNotify=true
+StartupWMClass=wubitype

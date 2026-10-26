@@ -36,12 +36,13 @@ from wubitype.poems import POEMS, POEM_BY_ID
 from wubitype.schemes import SCHEMES, get_scheme
 
 ROOT = Path(__file__).resolve().parents[1]
+DATA = ROOT / "data"
 
 
 class DataTest(unittest.TestCase):
     @classmethod
     def setUpClass(cls) -> None:
-        cls.dictionary = Dictionary.load(ROOT)
+        cls.dictionary = Dictionary.load(DATA)
         cls.dictionary86 = Dictionary.load(version="86")
 
     def test_first_level_scope_has_25_chars(self) -> None:
@@ -239,7 +240,7 @@ class KeyTableTest(unittest.TestCase):
 class LookupTest(unittest.TestCase):
     @classmethod
     def setUpClass(cls) -> None:
-        cls.lookup = ReverseLookup.load(ROOT)
+        cls.lookup = ReverseLookup.load(DATA)
         cls.lookup86 = ReverseLookup.load(version="86")
 
     def test_exact_short_code(self) -> None:
@@ -302,7 +303,7 @@ class LookupTest(unittest.TestCase):
 class EncodingTest(unittest.TestCase):
     @classmethod
     def setUpClass(cls) -> None:
-        cls.index = WordIndex.load(ROOT)
+        cls.index = WordIndex.load(DATA)
         cls.index86 = WordIndex.load(version="86")
 
     def test_char_preferred_short_code(self) -> None:
@@ -392,7 +393,7 @@ class EncodingTest(unittest.TestCase):
 class PoemTest(unittest.TestCase):
     @classmethod
     def setUpClass(cls) -> None:
-        cls.words = WordIndex.load(ROOT)
+        cls.words = WordIndex.load(DATA)
         cls.words86 = WordIndex.load(version="86")
 
     def test_poem_collection(self) -> None:

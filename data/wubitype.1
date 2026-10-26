@@ -1,0 +1,27 @@
+.TH WUBITYPE 1 "2026-10-26" "wubitype 0.1.0" "User Commands"
+.SH NAME
+wubitype \- 五笔 98 / 86 版打字练习
+.SH SYNOPSIS
+.B wubitype
+.SH DESCRIPTION
+.B wubitype
+是一个基于 GTK4 的五笔字型打字练习软件，支持五笔 98 版和 86 版。
+提供单字、词组、混合练习、键位专项、古诗与自定义文稿跟打、
+编码反查、汉字查码、错题重练和成绩统计。
+.SH FILES
+.TP
+.I ~/.config/wubitype/config.json
+用户设置和最佳成绩。
+.TP
+.I /usr/share/wubitype/
+系统码表和键位图。
+.SH ENVIRONMENT
+.TP
+.B WUBITYPE_DATA
+指定码表目录。目录中需包含
+.IR wubi98.main.txt " 或 " wubi86.main.txt 。
+.TP
+.B WUBITYPE_TABLE
+指定当前版本键位图路径。
+.SH LICENSE
+MIT License.
