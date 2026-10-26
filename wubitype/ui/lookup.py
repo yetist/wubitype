@@ -58,8 +58,8 @@ class LookupDialog(Gtk.Window):
         outer.append(switcher)
         outer.append(self.stack)
 
-        self.stack.add_titled(self._build_encode_page(), "encode", "汉字查码")
         self.stack.add_titled(self._build_reverse_page(), "reverse", "编码反查")
+        self.stack.add_titled(self._build_encode_page(), "encode", "汉字查码")
 
         key_controller = Gtk.EventControllerKey()
         key_controller.set_propagation_phase(Gtk.PropagationPhase.CAPTURE)
@@ -142,7 +142,9 @@ class LookupDialog(Gtk.Window):
         self.encode_status.set_xalign(0)
         page.append(self.encode_status)
 
-        self.encode_summary = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=4)
+        self.encode_summary = Gtk.Box(
+            orientation=Gtk.Orientation.VERTICAL, spacing=4
+        )
         self.encode_summary.add_css_class("encode-summary")
         self.encode_summary.set_visible(False)
 
@@ -152,7 +154,9 @@ class LookupDialog(Gtk.Window):
         self.minimal_code_label.set_xalign(0)
         self.minimal_code_label.set_selectable(True)
         self.minimal_code_label.set_wrap(True)
-        minimal_row = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=10)
+        minimal_row = Gtk.Box(
+            orientation=Gtk.Orientation.HORIZONTAL, spacing=10
+        )
         minimal_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=1)
         minimal_box.set_hexpand(True)
         minimal_box.append(self.minimal_caption)
@@ -383,7 +387,9 @@ class LookupDialog(Gtk.Window):
             )
         )
 
-    def _on_reverse_row_activated(self, _row: Gtk.ListBoxRow, item: LookupItem) -> None:
+    def _on_reverse_row_activated(
+        self, _row: Gtk.ListBoxRow, item: LookupItem
+    ) -> None:
         self.get_clipboard().set(item.text)
         self.status.set_label(f"已复制「{item.text}」 {item.code.upper()}")
 
@@ -405,7 +411,8 @@ class LookupDialog(Gtk.Window):
         self.minimal_code_label.set_label(result.minimal_code_spaced or "—")
         self.full_code_label.set_label(result.full_code_spaced or "—")
         self.full_row.set_visible(
-            bool(result.segments) and result.minimal_code != result.full_code
+            bool(result.segments)
+            and result.minimal_code != result.full_code
         )
 
         notes = [f"共 {len(result.segments)} 段", f"{result.char_count} 字"]
@@ -420,7 +427,9 @@ class LookupDialog(Gtk.Window):
         for segment in result.segments:
             self._add_encode_item(segment)
         if result.missing:
-            warning = label("未识别：" + "".join(result.missing), "feedback-bad")
+            warning = label(
+                "未识别：" + "".join(result.missing), "feedback-bad"
+            )
             warning.set_xalign(0)
             warning.set_margin_top(6)
             warning_row = Gtk.ListBoxRow()
@@ -447,7 +456,9 @@ class LookupDialog(Gtk.Window):
         code.set_xalign(0)
         code_box.append(code)
         if segment.full_code != segment.code:
-            full = label(f"全码 {segment.full_code.upper()}", "encode-full-code")
+            full = label(
+                f"全码 {segment.full_code.upper()}", "encode-full-code"
+            )
             full.set_xalign(0)
             code_box.append(full)
 
@@ -468,7 +479,9 @@ class LookupDialog(Gtk.Window):
             )
         )
 
-    def _on_encode_row_activated(self, _row: Gtk.ListBoxRow, segment: Segment) -> None:
+    def _on_encode_row_activated(
+        self, _row: Gtk.ListBoxRow, segment: Segment
+    ) -> None:
         self.get_clipboard().set(segment.code)
         self.encode_feedback.set_label(
             f"已复制「{segment.text}」的编码：{segment.code.upper()}"
