@@ -58,8 +58,8 @@ class LookupDialog(Gtk.Window):
         outer.append(switcher)
         outer.append(self.stack)
 
-        self.stack.add_titled(self._build_reverse_page(), "reverse", "编码反查")
         self.stack.add_titled(self._build_encode_page(), "encode", "汉字查码")
+        self.stack.add_titled(self._build_reverse_page(), "reverse", "编码反查")
 
         key_controller = Gtk.EventControllerKey()
         key_controller.set_propagation_phase(Gtk.PropagationPhase.CAPTURE)
