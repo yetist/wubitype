@@ -54,7 +54,8 @@ SECTIONS: tuple[tuple[str, tuple[tuple[str, str], ...]], ...] = (
     (
         "编码查询",
         (
-            ("Ctrl+1 / Ctrl+2", "切换编码反查 / 汉字查码"),
+            ("Ctrl+1", "切换到汉字查码"),
+            ("Ctrl+2", "切换到编码反查"),
             ("Ctrl+L", "聚焦搜索框"),
             ("↑ / ↓", "浏览结果"),
             ("Enter / Ctrl+C", "复制当前结果"),

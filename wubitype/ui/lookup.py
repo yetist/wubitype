@@ -213,11 +213,11 @@ class LookupDialog(Gtk.Window):
         lowered = Gdk.keyval_to_lower(keyval)
 
         if control and lowered == Gdk.KEY_1:
-            self.stack.set_visible_child_name("reverse")
+            self.stack.set_visible_child_name("encode")
             self._focus_current()
             return True
         if control and lowered == Gdk.KEY_2:
-            self.stack.set_visible_child_name("encode")
+            self.stack.set_visible_child_name("reverse")
             self._focus_current()
             return True
         if control and lowered == Gdk.KEY_l:
