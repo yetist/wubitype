@@ -4,6 +4,7 @@ import unittest
 from pathlib import Path
 from unittest.mock import patch
 
+from wubitype.articles import find_article, load_articles
 from wubitype.config import Config, load_config, save_config
 from wubitype.data import (
     FIRST_LEVEL_CHARS,
@@ -37,6 +38,34 @@ from wubitype.schemes import SCHEMES, get_scheme
 
 ROOT = Path(__file__).resolve().parents[1]
 DATA = ROOT / "data"
+
+
+class ArticleTest(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls) -> None:
+        cls.articles = load_articles(DATA)
+
+    def test_articles_available(self) -> None:
+        self.assertGreaterEqual(len(self.articles), 40)
+        self.assertEqual(
+            len({article.id for article in self.articles}),
+            len(self.articles),
+        )
+        for article in self.articles:
+            self.assertTrue(article.title)
+            self.assertTrue(article.path.is_file())
+            self.assertTrue(article.label.startswith("文章："))
+
+    def test_find_article(self) -> None:
+        first = self.articles[0]
+        found = find_article(first.id, DATA)
+        self.assertIsNotNone(found)
+        self.assertEqual(found.path, first.path)
+        self.assertIsNone(find_article("poem-01", DATA))
+
+    def test_article_contains_text(self) -> None:
+        text = read_text_file(self.articles[0].path)
+        self.assertTrue(any(is_hanzi(char) for char in text))
 
 
 class DataTest(unittest.TestCase):
@@ -649,6 +678,8 @@ class ConfigTest(unittest.TestCase):
     def test_text_scope_normalised(self) -> None:
         config = Config(text_scope="bogus").normalise()
         self.assertEqual(config.text_scope, "poem-01")
+        config = Config(text_scope="article:春.txt").normalise()
+        self.assertEqual(config.text_scope, "article:春.txt")
         config = Config(text_scope="custom", text_path=123).normalise()
         self.assertEqual(config.text_scope, "custom")
         self.assertEqual(config.text_path, "")

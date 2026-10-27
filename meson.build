@@ -38,6 +38,11 @@ install_data(
   install_dir: data_install_dir,
 )
 
+install_subdir(
+  'data/text',
+  install_dir: data_install_dir,
+)
+
 # 桌面集成
 install_data(
   'data/io.github.wubitype.WubiType.desktop',

@@ -12,6 +12,7 @@ gi.require_version("Gdk", "4.0")
 from gi.repository import Gdk, Gio, GLib, Gtk  # noqa: E402
 
 from .. import APP_ID, __version__  # noqa: E402
+from ..articles import find_article  # noqa: E402
 from ..config import Config, HINTS, save_config  # noqa: E402
 from ..data import (  # noqa: E402
     CHAR_SCOPES,
@@ -397,6 +398,15 @@ class MainWindow(Gtk.ApplicationWindow):
                 raise ValueError("请先在首页选择自定义文本文件")
             text = read_text_file(path)
             title = path.name
+        elif self.config.text_scope.startswith("article:"):
+            article = find_article(
+                self.config.text_scope,
+                self.dictionary.data_dir,
+            )
+            if article is None:
+                raise ValueError("找不到所选文章")
+            text = read_text_file(article.path)
+            title = f"《{article.title}》"
         else:
             poem = POEM_BY_ID.get(self.config.text_scope)
             if poem is None:

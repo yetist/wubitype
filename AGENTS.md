@@ -10,6 +10,7 @@
 - `data/wubi98.main.txt` `data/wubi98.large.txt` 分别是 98 版标准码表和扩展大字集码表（main 同时包含单字与词组）
 - `data/wubi86.main.txt` `data/wubi86.large.txt` 分别是 86 版标准码表和扩展大字集码表（main 同时包含单字与词组）
 - `data/wubi98-table.png` `data/wubi86-table.png` 分别是 98 版和 86 版键位图
+- `data/text/` 是内置练习文章
 - `src/wubitype/` 是 Python 源码包，`tests/` 是单元测试
 - `data/` 还包含桌面文件、AppStream 元数据、图标、man 手册和启动脚本
 - `meson.build` 负责系统安装与桌面集成

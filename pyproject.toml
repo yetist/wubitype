@@ -48,3 +48,4 @@ wubitype = ["style.css"]
   "data/wubi86.large.txt",
   "data/wubi86-table.png",
 ]
+"share/wubitype/text" = ["data/text/*.txt"]

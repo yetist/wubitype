@@ -12,6 +12,7 @@ from gi.repository import Gio, GLib, Gtk  # noqa: E402
 
 from ..config import Config  # noqa: E402
 from ..data import CHAR_SCOPES, PHRASE_SCOPES, is_hanzi  # noqa: E402
+from ..articles import load_articles  # noqa: E402
 from ..keymap import MNEMONIC_ROWS  # noqa: E402
 from ..passage import read_text_file  # noqa: E402
 from ..poems import POEMS  # noqa: E402
@@ -23,9 +24,6 @@ MODE_IDS = ("char", "phrase", "mixed", "keys", "text")
 HINT_LABELS = ("显示完整编码", "逐码提示（推荐）", "关闭提示")
 HINT_IDS = ("full", "next", "none")
 TEXT_CUSTOM_ID = "custom"
-TEXT_SCOPE_OPTIONS: tuple[tuple[str, str], ...] = tuple(
-    (poem.label, f"poem-{poem.number:02d}") for poem in POEMS
-) + (("自定义文本文件…", TEXT_CUSTOM_ID),)
 
 
 class HomeView(Gtk.ScrolledWindow):
@@ -39,6 +37,7 @@ class HomeView(Gtk.ScrolledWindow):
         self._scope_options: tuple[tuple[str, str], ...] = CHAR_SCOPES
         self._file_dialog_open = False
         self._scheme = get_scheme(config.version)
+        self._articles = load_articles()
 
         self.set_policy(Gtk.PolicyType.NEVER, Gtk.PolicyType.AUTOMATIC)
         self.set_vexpand(True)
@@ -216,7 +215,7 @@ class HomeView(Gtk.ScrolledWindow):
             options = PHRASE_SCOPES
             target = self.config.phrase_scope
         elif mode == "text":
-            options = TEXT_SCOPE_OPTIONS
+            options = self._text_scope_options()
             target = self.config.text_scope
         elif mode == "keys":
             options = self._scheme.key_scope_options
@@ -234,6 +233,16 @@ class HomeView(Gtk.ScrolledWindow):
             target = self._scope_ids[0]
         self.scope_dd.set_selected(self._scope_ids.index(target))
         self._updating = False
+
+    def _text_scope_options(self) -> tuple[tuple[str, str], ...]:
+        options = tuple(
+            (poem.label, f"poem-{poem.number:02d}") for poem in POEMS
+        )
+        options += tuple(
+            (article.label, article.id) for article in self._articles
+        )
+        options += (("自定义文本文件…", TEXT_CUSTOM_ID),)
+        return options
 
     def _on_scope_changed(self, drop: Gtk.DropDown, _pspec) -> None:
         if self._updating:
@@ -348,7 +357,7 @@ class HomeView(Gtk.ScrolledWindow):
     def _update_custom_row(self) -> None:
         if self.config.text_scope != TEXT_CUSTOM_ID:
             self.custom_file_label.set_label(
-                "内置《小学生必备古诗 80 首》· 可加载自定义文本"
+                "内置古诗与练习文章 · 可加载自定义文本"
             )
             return
         path = self.config.text_path

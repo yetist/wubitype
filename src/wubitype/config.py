@@ -55,7 +55,11 @@ class Config:
         )
         if not valid_key_scope:
             self.key_scope = "zone-1"
-        if self.text_scope != "custom" and not self.text_scope.startswith("poem-"):
+        if (
+            self.text_scope != "custom"
+            and not self.text_scope.startswith("poem-")
+            and not self.text_scope.startswith("article:")
+        ):
             self.text_scope = "poem-01"
         if not isinstance(self.text_path, str):
             self.text_path = ""
