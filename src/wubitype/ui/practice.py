@@ -19,6 +19,8 @@ from .widgets import card, label, stat_block  # noqa: E402
 
 KEY_PREVIEW_SIZE = (132, 162)
 PASSAGE_HEIGHT = 150
+PASSAGE_RIGHT_MARGIN = 10
+PASSAGE_RIGHT_MARGIN_WITH_HINT = 160
 
 
 def _clock(seconds: float) -> str:
@@ -33,6 +35,7 @@ class PracticeView(Gtk.Box):
         self.set_margin_bottom(16)
         self.set_margin_start(20)
         self.set_margin_end(20)
+        self.set_vexpand(False)
 
         self.on_finish = on_finish
         self.on_restart = on_restart
@@ -77,8 +80,11 @@ class PracticeView(Gtk.Box):
         prompt_card = Gtk.Overlay()
         prompt_card.add_css_class("card")
         prompt_card.add_css_class("prompt-card")
+        prompt_card.set_vexpand(False)
         self.append(prompt_card)
+        self.prompt_card = prompt_card
         content = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=2)
+        content.set_vexpand(True)
         prompt_card.set_child(content)
 
         header_row = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=8)
@@ -110,7 +116,7 @@ class PracticeView(Gtk.Box):
         self.passage_view.set_can_focus(False)
         self.passage_view.set_wrap_mode(Gtk.WrapMode.CHAR)
         self.passage_view.set_left_margin(10)
-        self.passage_view.set_right_margin(10)
+        self.passage_view.set_right_margin(PASSAGE_RIGHT_MARGIN)
         self.passage_view.set_top_margin(4)
         self.passage_view.set_bottom_margin(4)
         self.passage_buffer = Gtk.TextBuffer()
@@ -128,6 +134,7 @@ class PracticeView(Gtk.Box):
             Gtk.PolicyType.NEVER, Gtk.PolicyType.AUTOMATIC
         )
         self.passage_scroller.set_size_request(-1, PASSAGE_HEIGHT)
+        self.passage_scroller.set_vexpand(False)
         self.passage_scroller.set_child(self.passage_view)
         self.passage_scroller.set_visible(False)
         content.append(self.passage_scroller)
@@ -235,6 +242,7 @@ class PracticeView(Gtk.Box):
 
     def set_hint(self, hint: str) -> None:
         self.hint = hint
+        self._apply_passage_margin()
         if self._active and self.session is not None:
             if not self.session.is_paused:
                 labels = {
@@ -259,6 +267,8 @@ class PracticeView(Gtk.Box):
         self.session = session
         self.hint = hint
         self.passage = passage
+        self._set_passage_layout(passage is not None)
+        self._apply_passage_margin()
         self._active = True
         self.meta_label.set_label(meta)
         self._set_feedback("开始输入", "")
@@ -282,6 +292,21 @@ class PracticeView(Gtk.Box):
         if self._timer_id is not None:
             GLib.source_remove(self._timer_id)
             self._timer_id = None
+
+    def _set_passage_layout(self, enabled: bool) -> None:
+        """文稿模式让文稿区域随窗口高度扩展。"""
+        self.set_vexpand(enabled)
+        self.prompt_card.set_vexpand(enabled)
+        self.passage_scroller.set_vexpand(enabled)
+
+    def _apply_passage_margin(self) -> None:
+        """编码提示开启时给右侧键位预览留出空间。"""
+        margin = (
+            PASSAGE_RIGHT_MARGIN_WITH_HINT
+            if self.hint != "none"
+            else PASSAGE_RIGHT_MARGIN
+        )
+        self.passage_view.set_right_margin(margin)
 
     def _tick(self) -> bool:
         if not self._active or self.session is None:
