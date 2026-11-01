@@ -220,6 +220,21 @@ ZONE_COLORS = {
     5: (0.72, 0.60, 0.16),
 }
 
+#: 指法提示：按键盘行把每键分到左手或右手和手指分区。
+FINGER_ROWS: tuple[str, ...] = (
+    "左手小指 左手无名指 左手中指 左手食指 左手食指"
+    " 右手食指 右手食指 右手中指 右手无名指 右手小指",
+    "左手小指 左手无名指 左手中指 左手食指 左手食指"
+    " 右手食指 右手食指 右手中指 右手无名指",
+    "左手小指 左手无名指 左手中指 左手食指"
+    " 右手食指 右手中指",
+)
+FINGERS: dict[str, str] = {
+    letter: finger
+    for row, fingers in zip(ROWS, FINGER_ROWS)
+    for letter, finger in zip(row, fingers.split())
+}
+
 
 def expected_key(code: str, typed_count: int) -> str | None:
     if 0 <= typed_count < len(code):

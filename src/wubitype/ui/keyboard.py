@@ -13,7 +13,7 @@ gi.require_version("PangoCairo", "1.0")
 
 from gi.repository import Gdk, GLib, Gtk, Pango, PangoCairo  # noqa: E402
 
-from ..keymap import KEYMAP, ROWS, ZONE_COLORS  # noqa: E402
+from ..keymap import FINGERS, KEYMAP, ROWS, ZONE_COLORS  # noqa: E402
 
 KEY_W = 72
 KEY_H = 74
@@ -128,7 +128,7 @@ class KeyboardView(Gtk.DrawingArea):
         _rounded_rect(cr, x, y, KEY_W, KEY_H, 10)
         cr.stroke()
 
-        # 键位字母与区位号
+        # 键位字母、区位号与指法提示
         self._text(cr, letter.upper(), x + 8, y + 4, 14, base, bold=True)
         self._text(
             cr,
@@ -140,6 +140,17 @@ class KeyboardView(Gtk.DrawingArea):
             alpha=0.55,
             right=True,
         )
+        if finger := FINGERS.get(letter):
+            self._text(
+                cr,
+                finger,
+                x + KEY_W / 2,
+                y + 5,
+                8.5,
+                base,
+                alpha=0.62,
+                center=True,
+            )
 
         # 键名与其余码元
         name_color = ACCENT if expected else (base.red, base.green, base.blue)
