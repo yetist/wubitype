@@ -31,6 +31,8 @@ SECTIONS: tuple[tuple[str, tuple[tuple[str, str], ...]], ...] = (
             ("Delete", "清空当前字已输入的码"),
             ("Tab", "跳过当前题"),
             ("Esc", "结束本组"),
+            ("Ctrl+Plus / Ctrl+Minus", "文稿跟打字号增大 / 减小"),
+            ("Ctrl+0", "文稿跟打字号恢复默认"),
             ("Ctrl+R", "重新开始"),
             ("Ctrl+P", "暂停 / 继续"),
         ),

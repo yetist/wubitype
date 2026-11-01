@@ -21,6 +21,9 @@ KEY_PREVIEW_SIZE = (132, 162)
 PASSAGE_HEIGHT = 150
 PASSAGE_RIGHT_MARGIN = 10
 PASSAGE_RIGHT_MARGIN_WITH_HINT = 160
+PASSAGE_FONT_SIZES = tuple(range(12, 38, 2))
+PASSAGE_FONT_DEFAULT_SIZE = 20
+PASSAGE_FONT_DEFAULT_INDEX = PASSAGE_FONT_SIZES.index(PASSAGE_FONT_DEFAULT_SIZE)
 
 
 def _clock(seconds: float) -> str:
@@ -50,6 +53,8 @@ class PracticeView(Gtk.Box):
         self._passage_index: int | None = None
         self._passage_done_upto = 0
         self._passage_current: tuple[int, int] | None = None
+        self._passage_font_index = PASSAGE_FONT_DEFAULT_INDEX
+        self._passage_font_provider: Gtk.CssProvider | None = None
         self.version = "98"
         self.mnemonics = MNEMONICS
 
@@ -307,6 +312,36 @@ class PracticeView(Gtk.Box):
             else PASSAGE_RIGHT_MARGIN
         )
         self.passage_view.set_right_margin(margin)
+
+    def adjust_passage_font(self, delta: int) -> None:
+        """按文稿字号档位调整；`0` 表示恢复默认字号。"""
+        if self.passage is None:
+            return
+        if delta == 0:
+            index = PASSAGE_FONT_DEFAULT_INDEX
+        else:
+            index = self._passage_font_index + delta
+            index = max(min(index, len(PASSAGE_FONT_SIZES) - 1), 0)
+        self._passage_font_index = index
+        self._apply_passage_font()
+        self._set_feedback(f"文稿字号：{PASSAGE_FONT_SIZES[index]}px", "")
+
+    def _apply_passage_font(self) -> None:
+        size = PASSAGE_FONT_SIZES[self._passage_font_index]
+        if self._passage_font_provider is None:
+            provider = Gtk.CssProvider()
+            self._passage_font_provider = provider
+            self.passage_view.get_style_context().add_provider(
+                provider, Gtk.STYLE_PROVIDER_PRIORITY_USER
+            )
+        else:
+            provider = self._passage_font_provider
+        provider.load_from_data(
+            (
+                f".passage-view, .passage-view text {{ "
+                f"font-size: {size}px; }}"
+            ).encode("utf-8")
+        )
 
     def _tick(self) -> bool:
         if not self._active or self.session is None:

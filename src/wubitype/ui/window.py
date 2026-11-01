@@ -535,6 +535,22 @@ class MainWindow(Gtk.ApplicationWindow):
         if control and lowered == Gdk.KEY_p:
             self.practice.toggle_pause()
             return True
+        if control and keyval in (
+            Gdk.KEY_equal,
+            Gdk.KEY_plus,
+            Gdk.KEY_KP_Add,
+        ):
+            self.practice.adjust_passage_font(1)
+            return True
+        if control and keyval in (
+            Gdk.KEY_minus,
+            Gdk.KEY_KP_Subtract,
+        ):
+            self.practice.adjust_passage_font(-1)
+            return True
+        if control and keyval in (Gdk.KEY_0, Gdk.KEY_KP_0):
+            self.practice.adjust_passage_font(0)
+            return True
         if control and keyval == Gdk.KEY_BackSpace:
             self.practice.clear_typed()
             return True
