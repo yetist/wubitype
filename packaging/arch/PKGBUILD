@@ -1,0 +1,32 @@
+# Maintainer: wubitype contributors <wubitype@example.com>
+
+pkgname=wubitype
+pkgver=0.1.0
+pkgrel=1
+pkgdesc='GTK4 typing tutor for Wubi 98 and 86'
+arch=('any')
+url='https://github.com/yetist/wubitype'
+license=('MIT')
+depends=('python' 'python-gobject' 'python-cairo' 'gtk4' 'gdk-pixbuf2')
+makedepends=('meson' 'ninja')
+checkdepends=('python-gobject' 'gtk4' 'gdk-pixbuf2')
+source=("$pkgname-$pkgver.tar.gz::$url/archive/refs/tags/v$pkgver.tar.gz")
+sha256sums=('SKIP')
+
+# data/text/ 中的内置文章版权归原作者所有。确认再分发授权后改为 true。
+_install_articles=false
+
+build() {
+  arch-meson "$pkgname-$pkgver" build \
+    --buildtype=release \
+    -Dinstall_articles=$_install_articles
+  meson compile -C build
+}
+
+check() {
+  meson test -C build --print-errorlogs
+}
+
+package() {
+  meson install -C build --destdir "$pkgdir"
+}

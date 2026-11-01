@@ -1,0 +1,6 @@
+option(
+  'install_articles',
+  type: 'boolean',
+  value: true,
+  description: 'Install built-in practice articles from data/text',
+)

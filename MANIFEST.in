@@ -1,5 +1,9 @@
 include LICENSE
 include README.md
 include AGENTS.md
+include meson.build
+include meson_options.txt
 recursive-include data *
+recursive-include debian *
+recursive-include packaging *
 recursive-include tests *.py

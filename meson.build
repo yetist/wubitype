@@ -38,10 +38,12 @@ install_data(
   install_dir: data_install_dir,
 )
 
-install_subdir(
-  'data/text',
-  install_dir: data_install_dir,
-)
+if get_option('install_articles')
+  install_subdir(
+    'data/text',
+    install_dir: data_install_dir,
+  )
+endif
 
 # 桌面集成
 install_data(

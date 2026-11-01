@@ -1,0 +1,11 @@
+#!/usr/bin/make -f
+
+%:
+	dh $@ --buildsystem=meson
+
+override_dh_auto_configure:
+	dh_auto_configure -- --buildtype=release -Dinstall_articles=false
+
+override_dh_auto_test:
+	# 单元测试不依赖图形环境。
+	dh_auto_test

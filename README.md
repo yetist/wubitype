@@ -62,6 +62,13 @@ pip install .
 wubitype
 ```
 
+如果不需要内置练习文章（例如发行版打包时未确认文章再分发授权），可以关闭文章安装：
+
+```bash
+meson setup build --prefix=/usr -Dinstall_articles=false
+sudo meson install -C build
+```
+
 码表按以下顺序查找：
 
 1. 环境变量 `WUBITYPE_DATA` 指向的目录；
@@ -216,10 +223,27 @@ src/wubitype/
   style.css              GTK4 样式
 tests/test_core.py
 meson.build              系统安装、桌面集成、测试
+meson_options.txt        Meson 构建选项
 pyproject.toml           Python 打包
 MANIFEST.in              sdist 数据文件
+packaging/               Flatpak、Arch、Fedora、openSUSE 打包配方
+debian/                  Debian / Ubuntu 打包配方
 LICENSE                  MIT
 ```
+
+## 打包
+
+仓库提供以下打包配方，详细说明见 [`packaging/README.md`](packaging/README.md)：
+
+- `packaging/flatpak/`：Flatpak manifest，可直接从源码树构建
+- `packaging/arch/`：Arch Linux / AUR `PKGBUILD`
+- `packaging/fedora/`：Fedora RPM spec
+- `packaging/opensuse/`：openSUSE RPM spec
+- `debian/`：Debian / Ubuntu `debian/` 目录
+
+`data/text/` 中的内置文章版权归原作者所有。各配方默认使用
+`-Dinstall_articles=false`，不把这些文章打入发行包；确认授权后可改为
+`true`。
 
 ## 发布检查
 
@@ -229,7 +253,9 @@ LICENSE                  MIT
 - 配置目录：`~/.config/wubitype/`
 - wheel 通过 `data-files` 携带码表
 - `desktop-file-validate` 通过
-- AppStream 校验除“缺少 homepage URL”和中文大小写提示外无错误
+- AppStream 校验通过（仅剩中文大小写提示）
+- Flatpak、Arch、Debian、Fedora、openSUSE 打包配方已提供
+- 发行版打包默认通过 `-Dinstall_articles=false` 排除第三方文章
 
 ## 许可
 
@@ -237,8 +263,6 @@ LICENSE                  MIT
 
 ## 待办
 
-- 增加指法提示（左右手、手指分区）。
 - 增加英文/多语言界面与 AppStream 翻译。
-- 提供 Flatpak 或各发行版打包配方。
 - 增加高对比度/大字号等无障碍选项。
 

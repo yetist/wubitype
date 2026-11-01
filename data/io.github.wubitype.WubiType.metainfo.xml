@@ -22,6 +22,7 @@
     </ul>
   </description>
   <launchable type="desktop-id">io.github.wubitype.WubiType.desktop</launchable>
+  <url type="homepage">https://github.com/yetist/wubitype</url>
   <provides>
     <binary>wubitype</binary>
   </provides>
