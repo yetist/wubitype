@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import os
+import time
 from dataclasses import asdict, dataclass, field
 from pathlib import Path
 
@@ -11,6 +12,9 @@ MODES = ("char", "phrase", "mixed", "keys", "text")
 HINTS = ("full", "next", "none")
 CHAR_SCOPE_IDS = ("first", "keyname", "level2", "level3", "full", "all")
 PHRASE_SCOPE_IDS = ("two", "three", "four", "multi", "all")
+# 历史成绩上限：保留较长的历史，曲线绘出最近 30 组
+HISTORY_LIMIT = 200
+HISTORY_DRAW_LIMIT = 30
 
 
 def config_path() -> Path:
@@ -38,6 +42,7 @@ class Config:
     hint: str = "next"
     extended: bool = False
     best: dict[str, dict[str, float]] = field(default_factory=dict)
+    history: list[dict[str, float | int | str]] = field(default_factory=list)
 
     def normalise(self) -> "Config":
         if self.version not in ("98", "86"):
@@ -72,6 +77,11 @@ class Config:
         for mode in MODES:
             if mode in self.best and f"98:{mode}" not in self.best:
                 self.best[f"98:{mode}"] = self.best.pop(mode)
+        if not isinstance(self.history, list):
+            self.history = []
+        self.history = [
+            dict(item) for item in self.history if isinstance(item, dict)
+        ][-HISTORY_LIMIT:]
         return self
 
     def _best_key(self, mode: str) -> str:
@@ -96,6 +106,45 @@ class Config:
             "score": round(score, 1),
         }
         return True
+
+    def record_history(
+        self,
+        mode: str,
+        *,
+        speed: float,
+        accuracy: float,
+        chars: int,
+        keystrokes: int,
+        errors: int,
+        streak: int,
+        elapsed: float,
+    ) -> dict[str, float | int | str]:
+        """追加一组成绩记录，超出上限时丢掉最早的记录。"""
+        record: dict[str, float | int | str] = {
+            "ts": int(time.time()),
+            "mode": mode if mode in MODES else "char",
+            "version": self.version,
+            "speed": round(speed, 1),
+            "accuracy": round(accuracy, 1),
+            "chars": int(chars),
+            "keys": int(keystrokes),
+            "errors": int(errors),
+            "streak": int(streak),
+            "elapsed": round(elapsed, 1),
+        }
+        self.history.append(record)
+        del self.history[:-HISTORY_LIMIT]
+        return record
+
+    def history_for(self, mode: str) -> list[dict[str, float | int | str]]:
+        """返回当前版本、指定模式下按时间升序的历史记录。"""
+        records = [
+            dict(item)
+            for item in self.history
+            if item.get("mode") == mode and item.get("version") == self.version
+        ]
+        records.sort(key=lambda item: float(item.get("ts") or 0.0))
+        return records
 
 
 def load_config(path: Path | None = None) -> Config:

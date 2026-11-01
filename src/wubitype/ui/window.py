@@ -421,15 +421,31 @@ class MainWindow(Gtk.ApplicationWindow):
 
     def _finish_session(self, session: Session, *, aborted: bool = False) -> None:
         record = False
-        if not aborted and self._recordable and session.index > 0:
-            record = self.config.record(
+        if not aborted and session.index > 0:
+            if self._recordable:
+                record = self.config.record(
+                    self.config.mode,
+                    speed=session.speed,
+                    accuracy=session.accuracy,
+                    chars=session.chars_completed,
+                )
+            self.config.record_history(
                 self.config.mode,
                 speed=session.speed,
                 accuracy=session.accuracy,
                 chars=session.chars_completed,
+                keystrokes=session.keystrokes,
+                errors=session.errors,
+                streak=session.best_streak,
+                elapsed=session.elapsed,
             )
             save_config(self.config)
-        self.summary.show(session, record=record, aborted=aborted)
+        self.summary.show(
+            session,
+            record=record,
+            aborted=aborted,
+            history=self.config.history_for(self.config.mode),
+        )
         self.stack.set_visible_child(self.summary)
 
     def _restart(self) -> None:

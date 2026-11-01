@@ -8,7 +8,9 @@ gi.require_version("Gtk", "4.0")
 
 from gi.repository import GLib, Gtk  # noqa: E402
 
+from ..config import HISTORY_DRAW_LIMIT  # noqa: E402
 from ..drill import Session  # noqa: E402
+from .chart import SpeedCurve  # noqa: E402
 from .widgets import card, label  # noqa: E402
 
 
@@ -82,6 +84,22 @@ class SummaryView(Gtk.ScrolledWindow):
         detail_card.append(grid)
         outer.append(detail_card)
 
+        history_card = card(spacing=10)
+        history_header = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=8)
+        self.history_title = label("速度曲线", "card-title")
+        self.history_title.set_xalign(0)
+        self.history_meta = label("", "hint")
+        self.history_meta.set_xalign(1)
+        self.history_meta.set_hexpand(True)
+        history_header.append(self.history_title)
+        history_header.append(self.history_meta)
+        self.speed_chart = SpeedCurve()
+        history_card.append(history_header)
+        history_card.append(self.speed_chart)
+        history_card.set_visible(False)
+        self.history_card = history_card
+        outer.append(history_card)
+
         mistake_card = card(spacing=8)
         mistake_header = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=8)
         self.mistake_title = label("错题", "card-title")
@@ -144,7 +162,14 @@ class SummaryView(Gtk.ScrolledWindow):
         box.append(caption_label)
         return box, value
 
-    def show(self, session: Session, *, record: bool = False, aborted: bool = False) -> None:
+    def show(
+        self,
+        session: Session,
+        *,
+        record: bool = False,
+        aborted: bool = False,
+        history: list[dict[str, float | int | str]] | None = None,
+    ) -> None:
         self.session = session
         self.title_label.set_label("本组已结束" if aborted else "本组完成")
         self.record_label.set_visible(bool(record and not aborted))
@@ -156,7 +181,19 @@ class SummaryView(Gtk.ScrolledWindow):
         self.details["errors"].set_label(str(session.errors))
         self.details["streak"].set_label(str(session.best_streak))
         self.details["chars"].set_label(str(session.chars_completed))
+        self._fill_history(history or [])
         self._fill_mistakes(session)
+
+    def _fill_history(self, history: list[dict[str, float | int | str]]) -> None:
+        recent = history[-HISTORY_DRAW_LIMIT:]
+        points = [float(item.get("speed", 0.0)) for item in recent]
+        self.history_card.set_visible(bool(points))
+        if not points:
+            return
+        self.history_meta.set_label(
+            f"最近 {len(points)} 组 · 单位：字/分"
+        )
+        self.speed_chart.set_points(points)
 
     def retry_mistakes(self) -> None:
         if self.retry_button.get_sensitive():

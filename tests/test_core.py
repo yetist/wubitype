@@ -5,7 +5,7 @@ from pathlib import Path
 from unittest.mock import patch
 
 from wubitype.articles import find_article, load_articles
-from wubitype.config import Config, load_config, save_config
+from wubitype.config import HISTORY_LIMIT, Config, load_config, save_config
 from wubitype.data import (
     FIRST_LEVEL_CHARS,
     KEY_NAME_CHARS,
@@ -737,6 +737,73 @@ class ConfigTest(unittest.TestCase):
                 self.assertTrue(new.is_file())
         self.assertEqual(config.version, "86")
         self.assertEqual(config.count, 7)
+
+
+class HistoryTest(unittest.TestCase):
+    def test_record_history_and_filter_by_mode_version(self) -> None:
+        config = Config(version="98")
+        config.record_history(
+            "char",
+            speed=80.0,
+            accuracy=95.0,
+            chars=20,
+            keystrokes=85,
+            errors=3,
+            streak=15,
+            elapsed=15.0,
+        )
+        records = config.history_for("char")
+        self.assertEqual(len(records), 1)
+        entry = records[0]
+        self.assertEqual(entry["mode"], "char")
+        self.assertEqual(entry["version"], "98")
+        self.assertEqual(entry["speed"], 80.0)
+        self.assertEqual(entry["chars"], 20)
+        self.assertEqual(entry["keys"], 85)
+        self.assertEqual(entry["errors"], 3)
+        self.assertEqual(entry["streak"], 15)
+        self.assertEqual(entry["elapsed"], 15.0)
+        # 其他模式与其他版本均不包含该记录
+        self.assertEqual(config.history_for("phrase"), [])
+        config.version = "86"
+        self.assertEqual(config.history_for("char"), [])
+
+    def test_history_limit_keeps_latest(self) -> None:
+        config = Config()
+        for index in range(HISTORY_LIMIT + 10):
+            config.record_history(
+                "char",
+                speed=float(index),
+                accuracy=95.0,
+                chars=20,
+                keystrokes=80,
+                errors=0,
+                streak=0,
+                elapsed=10.0,
+            )
+        self.assertEqual(len(config.history), HISTORY_LIMIT)
+        self.assertEqual(config.history[0]["speed"], 10.0)
+        self.assertEqual(config.history[-1]["speed"], float(HISTORY_LIMIT + 9))
+
+    def test_history_normalise_and_persist(self) -> None:
+        config = Config(history="oops").normalise()
+        self.assertEqual(config.history, [])
+        config.record_history(
+            "text",
+            speed=60.0,
+            accuracy=98.0,
+            chars=40,
+            keystrokes=120,
+            errors=1,
+            streak=30,
+            elapsed=40.0,
+        )
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "config.json"
+            save_config(config, path)
+            loaded = load_config(path)
+        self.assertEqual(len(loaded.history), 1)
+        self.assertEqual(loaded.history[0]["mode"], "text")
 
 
 if __name__ == "__main__":
