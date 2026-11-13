@@ -377,10 +377,28 @@ class HomeView(Gtk.ScrolledWindow):
         self._updating = False
         self._update_custom_row()
 
+    def _initial_text_folder(self) -> Path | None:
+        """返回上次打开文稿的目录；不可用时退回用户主目录。"""
+        candidates = []
+        if self.config.text_dir:
+            candidates.append(Path(self.config.text_dir).expanduser())
+        if self.config.text_path:
+            candidates.append(Path(self.config.text_path).expanduser().parent)
+        candidates.append(Path.home())
+        for candidate in candidates:
+            if candidate.is_dir():
+                return candidate
+        return None
+
     def _choose_text_file(self) -> bool:
         if self._file_dialog_open:
             return False
         dialog = Gtk.FileDialog(title="选择文稿文件")
+        initial_folder = self._initial_text_folder()
+        if initial_folder is not None:
+            dialog.set_initial_folder(
+                Gio.File.new_for_path(str(initial_folder))
+            )
         filters = Gio.ListStore.new(Gtk.FileFilter)
         text_filter = Gtk.FileFilter()
         text_filter.set_name("文本文件")
@@ -418,6 +436,7 @@ class HomeView(Gtk.ScrolledWindow):
             )
             return False
         self.config.text_path = str(path)
+        self.config.text_dir = str(path.parent)
         self.config.text_scope = TEXT_CUSTOM_ID
         self._select_scope(TEXT_CUSTOM_ID)
         return True

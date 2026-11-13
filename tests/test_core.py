@@ -652,13 +652,30 @@ class ConfigTest(unittest.TestCase):
     def test_roundtrip_and_normalise(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             path = Path(tmp) / "config.json"
-            config = Config(mode="phrase", char_scope="nope", count=9999)
+            config = Config(
+                mode="phrase",
+                char_scope="nope",
+                count=9999,
+                text_dir="/tmp/文稿",
+            )
             config.normalise()
             save_config(config, path)
             loaded = load_config(path)
         self.assertEqual(loaded.mode, "phrase")
         self.assertEqual(loaded.char_scope, "level2")
         self.assertEqual(loaded.count, 500)
+        self.assertEqual(loaded.text_dir, "/tmp/文稿")
+
+    def test_text_directory_normalised_and_inferred(self) -> None:
+        config = Config(text_path="/tmp/文稿.txt").normalise()
+        self.assertEqual(config.text_dir, "/tmp")
+        config = Config(
+            text_path="/tmp/文稿.txt",
+            text_dir="/home/user/documents",
+        ).normalise()
+        self.assertEqual(config.text_dir, "/home/user/documents")
+        config = Config(text_dir=123).normalise()
+        self.assertEqual(config.text_dir, "")
 
     def test_record_requires_accuracy(self) -> None:
         config = Config()

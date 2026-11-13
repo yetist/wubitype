@@ -38,6 +38,7 @@ class Config:
     key_scope: str = "zone-1"
     text_scope: str = "poem-01"
     text_path: str = ""
+    text_dir: str = ""
     count: int = 20
     hint: str = "next"
     extended: bool = False
@@ -68,6 +69,11 @@ class Config:
             self.text_scope = "poem-01"
         if not isinstance(self.text_path, str):
             self.text_path = ""
+        if not isinstance(self.text_dir, str):
+            self.text_dir = ""
+        # 旧配置没有 text_dir 时，从上次选择的文稿路径推断所在目录。
+        if not self.text_dir and self.text_path:
+            self.text_dir = str(Path(self.text_path).expanduser().parent)
         if self.hint not in HINTS:
             self.hint = "next"
         self.count = max(1, min(500, int(self.count)))
